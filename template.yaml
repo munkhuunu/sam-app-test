@@ -141,6 +141,10 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: students
+        - DynamoDBCrudPolicy:
+            TableName: classes
+        - DynamoDBCrudPolicy:
+            TableName: schools
       Events:
         GetStudent:
           Type: Api
