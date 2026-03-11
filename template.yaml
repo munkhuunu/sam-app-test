@@ -2,159 +2,143 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
 Globals:
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization'"
+      AllowOrigin: "'*'"  
   Function:
     Timeout: 10
     Runtime: nodejs20.x
     Environment:
       Variables:
-        SCHOOLS_TABLE: schools      # ← шууд нэр бичнэ
+        USERS_TABLE: users
+        SCHOOLS_TABLE: schools
         CLASSES_TABLE: classes
         STUDENTS_TABLE: students
+        JWT_SECRET: !Sub '{{resolve:ssm:/sam-app-test/jwt-secret}}'
 
 Resources:
+  ApiUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      UsagePlanName: school-app-usage-plan
+      Throttle:
+        RateLimit: 100
+        BurstLimit: 200
+      Quota:
+        Limit: 10000
+        Period: DAY
+      ApiStages:
+        - ApiId: !Ref ServerlessRestApi
+          Stage: Prod
 
-  # ── SCHOOLS ─────────────────────────────────────
-
-  ListSchoolsFunction:
+  AuthFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: hello-world/
-      Handler: schools/list.lambdaHandler
+      Handler: auth/index.lambdaHandler
       Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: sam-app-test/jwt-secret
         - DynamoDBCrudPolicy:
-            TableName: schools      # ← шууд нэр бичнэ
+            TableName: users
       Events:
-        ListSchools:
+        Register:
           Type: Api
           Properties:
-            Path: /schools
-            Method: GET
+            Path: /auth/{proxy+}
+            Method: ANY
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        EntryPoints: [schools/list.ts]
+        EntryPoints: [auth/index.ts]
 
-  CreateSchoolFunction:
+  SchoolsFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: hello-world/
-      Handler: schools/create.lambdaHandler
+      Handler: schools/index.lambdaHandler
       Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: sam-app-test/jwt-secret
+        - DynamoDBCrudPolicy:
+            TableName: schools
+        - DynamoDBCrudPolicy:
+            TableName: classes
+      Events:
+        Schools:
+          Type: Api
+          Properties:
+            Path: /schools/{proxy+}
+            Method: ANY
+        SchoolsRoot:
+          Type: Api
+          Properties:
+            Path: /schools
+            Method: ANY
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [schools/index.ts]
+
+  ClassesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello-world/
+      Handler: classes/index.lambdaHandler
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: sam-app-test/jwt-secret
+        - DynamoDBCrudPolicy:
+            TableName: classes
         - DynamoDBCrudPolicy:
             TableName: schools
       Events:
-        CreateSchool:
+        Classes:
           Type: Api
           Properties:
-            Path: /schools
-            Method: POST
+            Path: /classes/{proxy+}
+            Method: ANY
+        ClassesRoot:
+          Type: Api
+          Properties:
+            Path: /classes
+            Method: ANY
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        EntryPoints: [schools/create.ts]
+        EntryPoints: [classes/index.ts]
 
-  # ── CLASSES ─────────────────────────────────────
-
-  ListClassesFunction:
+  StudentsFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: hello-world/
-      Handler: classes/list.lambdaHandler
+      Handler: students/index.lambdaHandler
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: classes
-      Events:
-        ListClasses:
-          Type: Api
-          Properties:
-            Path: /schools/{schoolId}/classes
-            Method: GET
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        EntryPoints: [classes/list.ts]
-
-  CreateClassFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: hello-world/
-      Handler: classes/create.lambdaHandler
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: classes
-      Events:
-        CreateClass:
-          Type: Api
-          Properties:
-            Path: /schools/{schoolId}/classes
-            Method: POST
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        EntryPoints: [classes/create.ts]
-
-  # ── STUDENTS ────────────────────────────────────
-
-  ListStudentsFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: hello-world/
-      Handler: students/list.lambdaHandler
-      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: sam-app-test/jwt-secret
         - DynamoDBCrudPolicy:
             TableName: students
+        - DynamoDBCrudPolicy:
+            TableName: classes
+        - DynamoDBCrudPolicy:
+            TableName: schools
       Events:
-        ListStudents:
+        Students:
           Type: Api
           Properties:
-            Path: /classes/{classId}/students
-            Method: GET
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        EntryPoints: [students/list.ts]
-
-  CreateStudentFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: hello-world/
-      Handler: students/create.lambdaHandler
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: students
-      Events:
-        CreateStudent:
+            Path: /students/{proxy+}
+            Method: ANY
+        StudentsRoot:
           Type: Api
           Properties:
             Path: /students
-            Method: POST
+            Method: ANY
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        EntryPoints: [students/create.ts]
-
-  GetStudentFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: hello-world/
-      Handler: students/getById.lambdaHandler
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: students
-        - DynamoDBCrudPolicy:
-            TableName: classes
-        - DynamoDBCrudPolicy:
-            TableName: schools
-      Events:
-        GetStudent:
-          Type: Api
-          Properties:
-            Path: /students/{studentId}
-            Method: GET
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        EntryPoints: [students/getById.ts]
+        EntryPoints: [students/index.ts]
 
 Outputs:
   ApiUrl:
