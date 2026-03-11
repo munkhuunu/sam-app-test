@@ -6,7 +6,7 @@ Globals:
     Cors:
       AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
       AllowHeaders: "'Content-Type,Authorization'"
-      AllowOrigin: "'*'"  
+      AllowOrigin: "'*'"
   Function:
     Timeout: 10
     Runtime: nodejs20.x
@@ -16,22 +16,8 @@ Globals:
         SCHOOLS_TABLE: schools
         CLASSES_TABLE: classes
         STUDENTS_TABLE: students
-        # JWT_SECRET: !Sub '{{resolve:ssm-secure:/sam-app-test/jwt-secret}}'
 
 Resources:
-  ApiUsagePlan:
-    Type: AWS::ApiGateway::UsagePlan
-    Properties:
-      UsagePlanName: school-app-usage-plan
-      Throttle:
-        RateLimit: 100
-        BurstLimit: 200
-      Quota:
-        Limit: 10000
-        Period: DAY
-      ApiStages:
-        - ApiId: !Ref ServerlessRestApi
-          Stage: Prod
 
   AuthFunction:
     Type: AWS::Serverless::Function
@@ -95,15 +81,15 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: schools
       Events:
-        Classes:
+        SchoolClasses:
           Type: Api
           Properties:
-            Path: /classes/{proxy+}
+            Path: /schools/{schoolId}/classes
             Method: ANY
-        ClassesRoot:
+        SchoolClassesProxy:
           Type: Api
           Properties:
-            Path: /classes
+            Path: /schools/{schoolId}/classes/{proxy+}
             Method: ANY
     Metadata:
       BuildMethod: esbuild
@@ -125,15 +111,25 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: schools
       Events:
-        Students:
-          Type: Api
-          Properties:
-            Path: /students/{proxy+}
-            Method: ANY
         StudentsRoot:
           Type: Api
           Properties:
             Path: /students
+            Method: ANY
+        StudentsProxy:
+          Type: Api
+          Properties:
+            Path: /students/{studentId}
+            Method: ANY
+        ClassStudents:
+          Type: Api
+          Properties:
+            Path: /classes/{classId}/students
+            Method: ANY
+        ClassStudentsProxy:
+          Type: Api
+          Properties:
+            Path: /classes/{classId}/students/{proxy+}
             Method: ANY
     Metadata:
       BuildMethod: esbuild
