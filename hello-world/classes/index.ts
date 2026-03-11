@@ -9,7 +9,7 @@ export const lambdaHandler = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
   try {
-    const user = authenticate(event);
+    const user = await authenticate(event);
     const method = event.httpMethod;
     const schoolId = event.pathParameters?.schoolId;
     const body = JSON.parse(event.body ?? '{}');

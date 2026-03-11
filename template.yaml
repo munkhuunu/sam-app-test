@@ -16,7 +16,7 @@ Globals:
         SCHOOLS_TABLE: schools
         CLASSES_TABLE: classes
         STUDENTS_TABLE: students
-        JWT_SECRET: !Sub '{{resolve:ssm-secure:/sam-app-test/jwt-secret}}'
+        # JWT_SECRET: !Sub '{{resolve:ssm-secure:/sam-app-test/jwt-secret}}'
 
 Resources:
   ApiUsagePlan:

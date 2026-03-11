@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { AuthRepository } from './authRepository';
 import { validateRegister, validateLogin } from '../validators/authValidator';
 import { ConflictError, UnauthorizedError } from '../utils/errors';
+import { getJwtSecret } from '../libs/ssm';
 
 const repo = new AuthRepository();
 
@@ -37,24 +38,22 @@ export class AuthService {
   async login(body: any) {
     validateLogin(body);
 
+    const secret = await getJwtSecret();
+
     const user = await repo.findByEmail(body.email);
     if (!user) throw new UnauthorizedError('Invalid email or password');
 
     const isValid = await bcrypt.compare(body.password, user.password);
     if (!isValid) throw new UnauthorizedError('Invalid email or password');
 
-    const token = jwt.sign(
-      {
+    const token = jwt.sign(      {
         userId: user.userId,
         email: user.email,
         role: user.role,
         schoolId: user.schoolId,
         classId: user.classId,
         studentId: user.studentId,
-      },
-      process.env.JWT_SECRET!,
-      { expiresIn: '8h' }
-    );
+      }, secret, { expiresIn: '8h' });
 
     return {
       token,
