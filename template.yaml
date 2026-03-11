@@ -30,7 +30,7 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: users
       Events:
-        Register:
+        AuthProxy:
           Type: Api
           Properties:
             Path: /auth/{proxy+}
@@ -53,48 +53,20 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: classes
       Events:
-        Schools:
-          Type: Api
-          Properties:
-            Path: /schools/{proxy+}
-            Method: ANY
         SchoolsRoot:
           Type: Api
           Properties:
             Path: /schools
             Method: ANY
+        SchoolsProxy:
+          Type: Api
+          Properties:
+            Path: /schools/{proxy+}
+            Method: ANY
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
         EntryPoints: [schools/index.ts]
-
-  ClassesFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: hello-world/
-      Handler: classes/index.lambdaHandler
-      Policies:
-        - SSMParameterReadPolicy:
-            ParameterName: sam-app-test/jwt-secret
-        - DynamoDBCrudPolicy:
-            TableName: classes
-        - DynamoDBCrudPolicy:
-            TableName: schools
-      Events:
-        SchoolClasses:
-          Type: Api
-          Properties:
-            Path: /schools/{schoolId}/classes
-            Method: ANY
-        SchoolClassesProxy:
-          Type: Api
-          Properties:
-            Path: /schools/{schoolId}/classes/{proxy+}
-            Method: ANY
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        EntryPoints: [classes/index.ts]
 
   StudentsFunction:
     Type: AWS::Serverless::Function
@@ -125,11 +97,6 @@ Resources:
           Type: Api
           Properties:
             Path: /classes/{classId}/students
-            Method: ANY
-        ClassStudentsProxy:
-          Type: Api
-          Properties:
-            Path: /classes/{classId}/students/{proxy+}
             Method: ANY
     Metadata:
       BuildMethod: esbuild
