@@ -69,11 +69,11 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     }
 
     // ---- GET /schools/{schoolId} ----
-    const proxyParam = event.pathParameters?.proxy;
-    if (method === 'GET' && proxyParam && !proxyParam.includes('/')) {
+    const schoolIdParam = event.pathParameters?.schoolId;
+    if (method === 'GET' && schoolIdParam && !path.includes('/classes')) {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
       const result = await docClient.send(new GetCommand({
-        TableName: TABLE, Key: { PK: `SCHOOL#${proxyParam}`, SK: `SCHOOL#${proxyParam}` },
+        TableName: TABLE, Key: { PK: `SCHOOL#${schoolIdParam}`, SK: `SCHOOL#${schoolIdParam}` },
       }));
       if (!result.Item) throw new NotFoundError('School not found');
       return ok(result.Item);

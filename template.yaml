@@ -100,10 +100,15 @@ Resources:
           Properties:
             Path: /schools
             Method: ANY
-        SchoolsProxy:
+        SchoolsById:
           Type: Api
           Properties:
-            Path: /schools/{proxy+}
+            Path: /schools/{schoolId}
+            Method: ANY
+        SchoolClasses:
+          Type: Api
+          Properties:
+            Path: /schools/{schoolId}/classes
             Method: ANY
     Metadata:
       BuildMethod: esbuild
@@ -126,10 +131,15 @@ Resources:
           Properties:
             Path: /students
             Method: ANY
-        StudentsProxy:
+        StudentById:
           Type: Api
           Properties:
-            Path: /students/{proxy+}
+            Path: /students/{studentId}
+            Method: ANY
+        StudentGrades:
+          Type: Api
+          Properties:
+            Path: /students/{studentId}/grades
             Method: ANY
         ClassStudents:
           Type: Api
@@ -157,10 +167,10 @@ Resources:
           Properties:
             Path: /teachers
             Method: ANY
-        TeachersProxy:
+        TeachersAssign:
           Type: Api
           Properties:
-            Path: /teachers/{proxy+}
+            Path: /teachers/assign
             Method: ANY
     Metadata:
       BuildMethod: esbuild
@@ -183,11 +193,6 @@ Resources:
           Properties:
             Path: /subjects
             Method: ANY
-        SubjectsProxy:
-          Type: Api
-          Properties:
-            Path: /subjects/{proxy+}
-            Method: ANY
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -208,11 +213,6 @@ Resources:
           Type: Api
           Properties:
             Path: /grades
-            Method: ANY
-        StudentGrades:
-          Type: Api
-          Properties:
-            Path: /students/{studentId}/grades
             Method: ANY
     Metadata:
       BuildMethod: esbuild
@@ -235,10 +235,10 @@ Resources:
           Properties:
             Path: /attendance
             Method: ANY
-        AttendanceProxy:
+        AttendanceStudent:
           Type: Api
           Properties:
-            Path: /attendance/{proxy+}
+            Path: /attendance/{studentId}
             Method: ANY
     Metadata:
       BuildMethod: esbuild

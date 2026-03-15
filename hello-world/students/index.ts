@@ -28,6 +28,18 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       return ok({ classId, students: result.Items ?? [] });
     }
 
+    // GET /students/{studentId}/grades
+    if (method === 'GET' && studentId && path.endsWith('/grades')) {
+      authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER', 'PARENT', 'STUDENT']);
+      const result = await docClient.send(new QueryCommand({
+        TableName: TABLE,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
+        ExpressionAttributeValues: { ':pk': `STUDENT#${studentId}#GRADES`, ':sk': 'GRADE#' },
+      }));
+      return ok(result.Items ?? []);
+    }
+
     // GET /students/{studentId}
     if (method === 'GET' && studentId) {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER', 'PARENT', 'STUDENT']);
