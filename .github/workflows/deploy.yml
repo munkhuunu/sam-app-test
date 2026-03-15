@@ -27,6 +27,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Install dependencies
+        run: cd hello-world && npm ci
+
       - name: SAM Build
         run: sam build
 
