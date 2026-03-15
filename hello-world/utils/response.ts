@@ -6,25 +6,26 @@ const CORS_HEADERS = {
 };
 
 export const ok = (data: unknown) => ({
-  statusCode: 200,
-  headers: CORS_HEADERS,
-  body: JSON.stringify(data),
+  statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(data),
 });
 
 export const created = (data: unknown) => ({
-  statusCode: 201,
-  headers: CORS_HEADERS,
-  body: JSON.stringify(data),
+  statusCode: 201, headers: CORS_HEADERS, body: JSON.stringify(data),
 });
 
 export const noContent = () => ({
-  statusCode: 204,
-  headers: CORS_HEADERS,
-  body: '',
+  statusCode: 204, headers: CORS_HEADERS, body: '',
 });
 
-export const errorResponse = (err: any) => ({
-  statusCode: err.statusCode ?? 500,
-  headers: CORS_HEADERS,
-  body: JSON.stringify({ message: err.message ?? 'Internal server error' }),
-});
+export const errorResponse = (err: any) => {
+  console.error('ERROR:', JSON.stringify({
+    statusCode: err.statusCode,
+    message: err.message,
+    stack: err.stack,
+  }));
+  return {
+    statusCode: err.statusCode ?? 500,
+    headers: CORS_HEADERS,
+    body: JSON.stringify({ message: err.message ?? 'Internal server error' }),
+  };
+};

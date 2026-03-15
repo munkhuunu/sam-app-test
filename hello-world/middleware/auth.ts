@@ -12,16 +12,13 @@ export interface AuthUser {
 
 export const authenticate = async (event: any): Promise<AuthUser> => {
   const authHeader = event.headers?.Authorization || event.headers?.authorization;
-  if (!authHeader) {
-    throw { statusCode: 401, message: 'Unauthorized' };
-  }
+  if (!authHeader) throw { statusCode: 401, message: 'Unauthorized' };
 
   const token = authHeader.replace('Bearer ', '');
   const secret = await getJwtSecret();
 
   try {
-    const decoded = jwt.verify(token, secret) as AuthUser;
-    return decoded;
+    return jwt.verify(token, secret) as AuthUser;
   } catch {
     throw { statusCode: 401, message: 'Invalid token' };
   }

@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
+Description: School Management System v2
 
 Globals:
   Api:
@@ -10,15 +11,58 @@ Globals:
   Function:
     Timeout: 10
     Runtime: nodejs20.x
+    MemorySize: 128
+    Tracing: Active
     Environment:
       Variables:
-        USERS_TABLE: users
-        SCHOOLS_TABLE: schools
-        CLASSES_TABLE: classes
-        STUDENTS_TABLE: students
+        TABLE_NAME: !Ref SchoolTable
+    Architectures:
+      - arm64
 
 Resources:
+  # ========== DynamoDB Single Table ==========
+  SchoolTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: school-management
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+        - AttributeName: GSI2PK
+          AttributeType: S
+        - AttributeName: GSI2SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI2
+          KeySchema:
+            - AttributeName: GSI2PK
+              KeyType: HASH
+            - AttributeName: GSI2SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
 
+  # ========== Lambda Functions ==========
   AuthFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -28,7 +72,7 @@ Resources:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
         - DynamoDBCrudPolicy:
-            TableName: users
+            TableName: !Ref SchoolTable
       Events:
         AuthProxy:
           Type: Api
@@ -49,9 +93,7 @@ Resources:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
         - DynamoDBCrudPolicy:
-            TableName: schools
-        - DynamoDBCrudPolicy:
-            TableName: classes
+            TableName: !Ref SchoolTable
       Events:
         SchoolsRoot:
           Type: Api
@@ -77,11 +119,7 @@ Resources:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
         - DynamoDBCrudPolicy:
-            TableName: students
-        - DynamoDBCrudPolicy:
-            TableName: classes
-        - DynamoDBCrudPolicy:
-            TableName: schools
+            TableName: !Ref SchoolTable
       Events:
         StudentsRoot:
           Type: Api
@@ -91,7 +129,7 @@ Resources:
         StudentsProxy:
           Type: Api
           Properties:
-            Path: /students/{studentId}
+            Path: /students/{proxy+}
             Method: ANY
         ClassStudents:
           Type: Api
@@ -103,6 +141,135 @@ Resources:
       BuildProperties:
         EntryPoints: [students/index.ts]
 
+  TeachersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello-world/
+      Handler: teachers/index.lambdaHandler
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: sam-app-test/jwt-secret
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SchoolTable
+      Events:
+        TeachersRoot:
+          Type: Api
+          Properties:
+            Path: /teachers
+            Method: ANY
+        TeachersProxy:
+          Type: Api
+          Properties:
+            Path: /teachers/{proxy+}
+            Method: ANY
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [teachers/index.ts]
+
+  SubjectsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello-world/
+      Handler: subjects/index.lambdaHandler
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: sam-app-test/jwt-secret
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SchoolTable
+      Events:
+        SubjectsRoot:
+          Type: Api
+          Properties:
+            Path: /subjects
+            Method: ANY
+        SubjectsProxy:
+          Type: Api
+          Properties:
+            Path: /subjects/{proxy+}
+            Method: ANY
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [subjects/index.ts]
+
+  GradesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello-world/
+      Handler: grades/index.lambdaHandler
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: sam-app-test/jwt-secret
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SchoolTable
+      Events:
+        GradesRoot:
+          Type: Api
+          Properties:
+            Path: /grades
+            Method: ANY
+        StudentGrades:
+          Type: Api
+          Properties:
+            Path: /students/{studentId}/grades
+            Method: ANY
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [grades/index.ts]
+
+  AttendanceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello-world/
+      Handler: attendance/index.lambdaHandler
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: sam-app-test/jwt-secret
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SchoolTable
+      Events:
+        AttendanceRoot:
+          Type: Api
+          Properties:
+            Path: /attendance
+            Method: ANY
+        AttendanceProxy:
+          Type: Api
+          Properties:
+            Path: /attendance/{proxy+}
+            Method: ANY
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [attendance/index.ts]
+
+  DashboardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello-world/
+      Handler: dashboard/index.lambdaHandler
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: sam-app-test/jwt-secret
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SchoolTable
+      Events:
+        DashboardRoot:
+          Type: Api
+          Properties:
+            Path: /dashboard
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [dashboard/index.ts]
+
 Outputs:
   ApiUrl:
+    Description: API Gateway endpoint URL
     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
+  SchoolTableName:
+    Description: DynamoDB table name
+    Value: !Ref SchoolTable

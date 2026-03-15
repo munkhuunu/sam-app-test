@@ -1,6 +1,10 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 
-export const docClient = DynamoDBDocumentClient.from(
-  new DynamoDBClient({})
-);
+const client = new DynamoDBClient({});
+
+export const docClient = DynamoDBDocumentClient.from(client, {
+  marshallOptions: { removeUndefinedValues: true },
+});
+
+export const TABLE = process.env.TABLE_NAME!;

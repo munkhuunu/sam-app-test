@@ -1,58 +1,105 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { SchoolService } from './schoolService';
-import { ClassService } from '../classes/classService';
+import { QueryCommand, PutCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { randomUUID } from 'crypto';
+import { docClient, TABLE } from '../libs/dynamodb';
 import { authenticate, authorize } from '../middleware/auth';
+import { validateCreateSchool, validateCreateClass } from '../validators';
 import { ok, created, errorResponse } from '../utils/response';
+import { NotFoundError } from '../utils/errors';
 
-const schoolService = new SchoolService();
-const classService = new ClassService();
-
-export const lambdaHandler = async (
-  event: APIGatewayProxyEvent
-): Promise<APIGatewayProxyResult> => {
+export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const user = await authenticate(event);
     const method = event.httpMethod;
     const path = event.path;
-    const schoolId = event.pathParameters?.schoolId ?? event.pathParameters?.proxy;
     const body = JSON.parse(event.body ?? '{}');
 
-    // /schools/{schoolId}/classes
+    // ---- /schools/{schoolId}/classes ----
     if (path.includes('/classes')) {
       const match = path.match(/\/schools\/([^\/]+)\/classes/);
-      const sid = match?.[1];
+      const schoolId = match?.[1];
+      if (!schoolId) return errorResponse({ statusCode: 400, message: 'Missing schoolId' });
 
-      if (method === 'GET' && sid) {
+      if (method === 'GET') {
         authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
-        return ok(await classService.listBySchool(sid));
+        const result = await docClient.send(new QueryCommand({
+          TableName: TABLE,
+          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+          ExpressionAttributeValues: { ':pk': `SCHOOL#${schoolId}`, ':sk': 'CLASS#' },
+        }));
+        return ok(result.Items ?? []);
       }
 
-      if (method === 'POST' && sid) {
+      if (method === 'POST') {
         authorize(user, ['DIRECTOR', 'MANAGER']);
-        return created(await classService.createClass(sid, body));
+        validateCreateClass(body);
+
+        const school = await docClient.send(new GetCommand({
+          TableName: TABLE, Key: { PK: `SCHOOL#${schoolId}`, SK: `SCHOOL#${schoolId}` },
+        }));
+        if (!school.Item) throw new NotFoundError('School not found');
+
+        const classId = randomUUID();
+        const item = {
+          PK: `SCHOOL#${schoolId}`,
+          SK: `CLASS#${classId}`,
+          GSI1PK: `CLASS#${classId}`,
+          GSI1SK: `CLASS#${classId}`,
+          entityType: 'CLASS',
+          classId, schoolId,
+          name: body.name,
+          grade: body.grade,
+          createdAt: new Date().toISOString(),
+        };
+        await docClient.send(new PutCommand({ TableName: TABLE, Item: item }));
+        return created(item);
       }
     }
 
-    // GET /schools
-    if (method === 'GET' && !schoolId) {
+    // ---- GET /schools ----
+    if (method === 'GET' && path === '/schools') {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
-      return ok(await schoolService.listSchools());
+      const result = await docClient.send(new QueryCommand({
+        TableName: TABLE,
+        IndexName: 'GSI1',
+        KeyConditionExpression: 'GSI1PK = :pk',
+        ExpressionAttributeValues: { ':pk': 'SCHOOLS' },
+      }));
+      return ok(result.Items ?? []);
     }
 
-    // GET /schools/{schoolId}
-    if (method === 'GET' && schoolId) {
+    // ---- GET /schools/{schoolId} ----
+    const proxyParam = event.pathParameters?.proxy;
+    if (method === 'GET' && proxyParam && !proxyParam.includes('/')) {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
-      return ok(await schoolService.getSchoolById(schoolId));
+      const result = await docClient.send(new GetCommand({
+        TableName: TABLE, Key: { PK: `SCHOOL#${proxyParam}`, SK: `SCHOOL#${proxyParam}` },
+      }));
+      if (!result.Item) throw new NotFoundError('School not found');
+      return ok(result.Item);
     }
 
-    // POST /schools
-    if (method === 'POST' && !schoolId) {
+    // ---- POST /schools ----
+    if (method === 'POST' && path === '/schools') {
       authorize(user, ['DIRECTOR']);
-      return created(await schoolService.createSchool(body));
+      validateCreateSchool(body);
+
+      const schoolId = randomUUID();
+      const item = {
+        PK: `SCHOOL#${schoolId}`,
+        SK: `SCHOOL#${schoolId}`,
+        GSI1PK: 'SCHOOLS',
+        GSI1SK: `SCHOOL#${schoolId}`,
+        entityType: 'SCHOOL',
+        schoolId,
+        name: body.name,
+        createdAt: new Date().toISOString(),
+      };
+      await docClient.send(new PutCommand({ TableName: TABLE, Item: item }));
+      return created(item);
     }
 
     return errorResponse({ statusCode: 404, message: 'Not found' });
-
   } catch (err: any) {
     return errorResponse(err);
   }
