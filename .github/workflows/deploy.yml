@@ -28,7 +28,9 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Install dependencies
-        run: cd hello-world && npm ci
+        run: |
+          npm install -g esbuild
+          cd hello-world && npm ci
 
       - name: SAM Build
         run: sam build
