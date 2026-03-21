@@ -14,7 +14,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     const path = event.path;
     const body = JSON.parse(event.body ?? '{}');
 
-    // ---- /schools/{schoolId}/classes ----
     if (path.includes('/classes')) {
       const match = path.match(/\/schools\/([^\/]+)\/classes/);
       const schoolId = match?.[1];
@@ -56,7 +55,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       }
     }
 
-    // ---- GET /schools ----
     if (method === 'GET' && path === '/schools') {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
       const result = await docClient.send(new QueryCommand({
@@ -68,7 +66,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       return ok(result.Items ?? []);
     }
 
-    // ---- GET /schools/{schoolId} ----
     const schoolIdParam = event.pathParameters?.schoolId;
     if (method === 'GET' && schoolIdParam && !path.includes('/classes')) {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
@@ -79,7 +76,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       return ok(result.Item);
     }
 
-    // ---- POST /schools ----
     if (method === 'POST' && path === '/schools') {
       authorize(user, ['DIRECTOR']);
       validateCreateSchool(body);

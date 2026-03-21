@@ -1,6 +1,5 @@
 import { BadRequestError } from '../utils/errors';
 
-// ====== Auth ======
 export const validateRegister = (body: any) => {
   if (!body.email || !body.password || !body.role)
     throw new BadRequestError('email, password, role required');
@@ -18,13 +17,11 @@ export const validateLogin = (body: any) => {
     throw new BadRequestError('email, password required');
 };
 
-// ====== School ======
 export const validateCreateSchool = (body: any) => {
   if (!body.name) throw new BadRequestError('name required');
   if (body.name.length < 2) throw new BadRequestError('name must be at least 2 characters');
 };
 
-// ====== Class ======
 export const validateCreateClass = (body: any) => {
   if (!body.name || body.grade === undefined)
     throw new BadRequestError('name, grade required');
@@ -32,7 +29,6 @@ export const validateCreateClass = (body: any) => {
     throw new BadRequestError('grade must be a number between 1 and 12');
 };
 
-// ====== Student ======
 export const validateCreateStudent = (body: any) => {
   if (!body.classId || !body.schoolId || !body.firstName || !body.lastName)
     throw new BadRequestError('classId, schoolId, firstName, lastName required');
@@ -47,7 +43,6 @@ export const validateUpdateStudent = (body: any) => {
     throw new BadRequestError('No fields to update');
 };
 
-// ====== Teacher ======
 export const validateCreateTeacher = (body: any) => {
   if (!body.schoolId || !body.firstName || !body.lastName)
     throw new BadRequestError('schoolId, firstName, lastName required');
@@ -58,13 +53,11 @@ export const validateAssignTeacher = (body: any) => {
     throw new BadRequestError('teacherId, classId required');
 };
 
-// ====== Subject ======
 export const validateCreateSubject = (body: any) => {
   if (!body.name || !body.schoolId)
     throw new BadRequestError('name, schoolId required');
 };
 
-// ====== Grade ======
 export const validateAddGrade = (body: any) => {
   if (!body.studentId || !body.subjectId || !body.classId || body.score === undefined)
     throw new BadRequestError('studentId, subjectId, classId, score required');
@@ -72,7 +65,6 @@ export const validateAddGrade = (body: any) => {
     throw new BadRequestError('score must be 0-100');
 };
 
-// ====== Attendance ======
 export const validateMarkAttendance = (body: any) => {
   if (!body.classId || !body.date || !body.records)
     throw new BadRequestError('classId, date, records required');

@@ -17,7 +17,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       countByType('SUBJECT'),
     ]);
 
-    // Өнөөдрийн ирц
     const today = new Date().toISOString().slice(0, 10);
     const attendanceResult = await docClient.send(new ScanCommand({
       TableName: TABLE,
@@ -27,7 +26,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       Select: 'COUNT',
     }));
 
-    // Сүүлийн 10 дүн
     const recentGrades = await docClient.send(new ScanCommand({
       TableName: TABLE,
       FilterExpression: 'entityType = :et',

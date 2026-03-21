@@ -12,7 +12,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     const path = event.path;
     const body = JSON.parse(event.body ?? '{}');
 
-    // GET /attendance?classId=xxx&date=2025-01-15
     if (method === 'GET' && path === '/attendance') {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
       const classId = event.queryStringParameters?.classId;
@@ -47,7 +46,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       return ok(result.Items ?? []);
     }
 
-    // POST /attendance — batch mark
     if (method === 'POST' && path === '/attendance') {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
       validateMarkAttendance(body);
@@ -69,7 +67,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
         createdAt: new Date().toISOString(),
       }));
 
-      // BatchWrite 25-аар хуваана
       for (let i = 0; i < items.length; i += 25) {
         const batch = items.slice(i, i + 25);
         await docClient.send(new BatchWriteCommand({

@@ -13,7 +13,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     const path = event.path;
     const body = JSON.parse(event.body ?? '{}');
 
-    // GET /students/{studentId}/grades
     const studentMatch = path.match(/\/students\/([^\/]+)\/grades/);
     if (method === 'GET' && studentMatch) {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER', 'PARENT', 'STUDENT']);
@@ -27,7 +26,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       return ok(result.Items ?? []);
     }
 
-    // GET /grades?classId=xxx&subjectId=yyy
     if (method === 'GET' && path === '/grades') {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
       const classId = event.queryStringParameters?.classId;
@@ -50,7 +48,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       return ok(result.Items ?? []);
     }
 
-    // POST /grades
     if (method === 'POST' && path === '/grades') {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
       validateAddGrade(body);

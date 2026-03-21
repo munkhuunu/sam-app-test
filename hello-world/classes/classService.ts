@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { ClassRepository } from './classRepository';
-import { validateCreateClass } from '../validators/classValidator';
+import { validateCreateClass } from '../validators';
 import { NotFoundError } from '../utils/errors';
 
 const repo = new ClassRepository();

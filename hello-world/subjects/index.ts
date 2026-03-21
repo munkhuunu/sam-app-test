@@ -13,7 +13,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     const path = event.path;
     const body = JSON.parse(event.body ?? '{}');
 
-    // GET /subjects?schoolId=xxx
     if (method === 'GET' && path === '/subjects') {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
       const schoolId = event.queryStringParameters?.schoolId;
@@ -28,7 +27,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       return ok(result.Items ?? []);
     }
 
-    // POST /subjects
     if (method === 'POST' && path === '/subjects') {
       authorize(user, ['DIRECTOR', 'MANAGER']);
       validateCreateSubject(body);

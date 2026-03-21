@@ -16,7 +16,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     const classId = event.pathParameters?.classId;
     const body = JSON.parse(event.body ?? '{}');
 
-    // GET /classes/{classId}/students
     if (method === 'GET' && classId) {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
       const result = await docClient.send(new QueryCommand({
@@ -28,7 +27,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       return ok({ classId, students: result.Items ?? [] });
     }
 
-    // GET /students/{studentId}/grades
     if (method === 'GET' && studentId && path.endsWith('/grades')) {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER', 'PARENT', 'STUDENT']);
       const result = await docClient.send(new QueryCommand({
@@ -40,7 +38,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       return ok(result.Items ?? []);
     }
 
-    // GET /students/{studentId}
     if (method === 'GET' && studentId) {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER', 'PARENT', 'STUDENT']);
       const result = await docClient.send(new QueryCommand({
@@ -53,7 +50,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       return ok(result.Items[0]);
     }
 
-    // POST /students
     if (method === 'POST') {
       authorize(user, ['DIRECTOR', 'MANAGER']);
       validateCreateStudent(body);
@@ -80,7 +76,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       return created(item);
     }
 
-    // DELETE /students/{studentId}
     if (method === 'DELETE' && studentId) {
       authorize(user, ['DIRECTOR']);
       const find = await docClient.send(new QueryCommand({

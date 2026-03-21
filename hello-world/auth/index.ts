@@ -15,7 +15,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     const path = event.path;
     const body = JSON.parse(event.body ?? '{}');
 
-    // POST /auth/register
     if (method === 'POST' && path.endsWith('/register')) {
       validateRegister(body);
 
@@ -51,7 +50,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       return created(safe);
     }
 
-    // POST /auth/login
     if (method === 'POST' && path.endsWith('/login')) {
       validateLogin(body);
       const secret = await getJwtSecret();
