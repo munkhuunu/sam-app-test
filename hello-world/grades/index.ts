@@ -1,74 +1,41 @@
+// subjects/index.ts
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 import { docClient, TABLE } from '../libs/dynamodb';
 import { authenticate, authorize } from '../middleware/auth';
-import { validateAddGrade } from '../validators';
+import { validateCreateSubject } from '../validators';
 import { ok, created, errorResponse } from '../utils/response';
+import { withAccessLog } from '../middleware/accessLog';
 
-export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const user = await authenticate(event);
     const method = event.httpMethod;
     const path = event.path;
     const body = JSON.parse(event.body ?? '{}');
 
-    const studentMatch = path.match(/\/students\/([^\/]+)\/grades/);
-    if (method === 'GET' && studentMatch) {
-      authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER', 'PARENT', 'STUDENT']);
-      const studentId = studentMatch[1];
+    if (method === 'GET' && path === '/subjects') {
+      authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
+      const schoolId = event.queryStringParameters?.schoolId;
+      if (!schoolId) return errorResponse({ statusCode: 400, message: 'schoolId required' });
       const result = await docClient.send(new QueryCommand({
-        TableName: TABLE,
-        IndexName: 'GSI1',
+        TableName: TABLE, IndexName: 'GSI1',
         KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
-        ExpressionAttributeValues: { ':pk': `STUDENT#${studentId}#GRADES`, ':sk': 'GRADE#' },
+        ExpressionAttributeValues: { ':pk': `SCHOOL#${schoolId}#SUBJECTS`, ':sk': 'SUBJECT#' },
       }));
       return ok(result.Items ?? []);
     }
 
-    if (method === 'GET' && path === '/grades') {
-      authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
-      const classId = event.queryStringParameters?.classId;
-      if (!classId) return errorResponse({ statusCode: 400, message: 'classId required' });
-
-      const subjectId = event.queryStringParameters?.subjectId;
-      let keyExpr = 'GSI2PK = :pk';
-      const exprValues: Record<string, any> = { ':pk': `CLASS#${classId}#GRADES` };
-
-      if (subjectId) {
-        keyExpr += ' AND begins_with(GSI2SK, :sk)';
-        exprValues[':sk'] = `SUBJECT#${subjectId}`;
-      }
-
-      const result = await docClient.send(new QueryCommand({
-        TableName: TABLE, IndexName: 'GSI2',
-        KeyConditionExpression: keyExpr,
-        ExpressionAttributeValues: exprValues,
-      }));
-      return ok(result.Items ?? []);
-    }
-
-    if (method === 'POST' && path === '/grades') {
-      authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
-      validateAddGrade(body);
-
-      const gradeId = randomUUID();
+    if (method === 'POST' && path === '/subjects') {
+      authorize(user, ['DIRECTOR', 'MANAGER']);
+      validateCreateSubject(body);
+      const subjectId = randomUUID();
       const item = {
-        PK: `STUDENT#${body.studentId}`,
-        SK: `GRADE#${gradeId}`,
-        GSI1PK: `STUDENT#${body.studentId}#GRADES`,
-        GSI1SK: `GRADE#${body.subjectId}#${gradeId}`,
-        GSI2PK: `CLASS#${body.classId}#GRADES`,
-        GSI2SK: `SUBJECT#${body.subjectId}#STUDENT#${body.studentId}`,
-        entityType: 'GRADE',
-        gradeId,
-        studentId: body.studentId,
-        classId: body.classId,
-        subjectId: body.subjectId,
-        score: body.score,
-        term: body.term ?? 'Q1',
-        comment: body.comment ?? null,
-        teacherId: user.userId,
+        PK: `SCHOOL#${body.schoolId}`, SK: `SUBJECT#${subjectId}`,
+        GSI1PK: `SCHOOL#${body.schoolId}#SUBJECTS`, GSI1SK: `SUBJECT#${subjectId}`,
+        entityType: 'SUBJECT', subjectId, schoolId: body.schoolId,
+        name: body.name, description: body.description ?? null,
         createdAt: new Date().toISOString(),
       };
       await docClient.send(new PutCommand({ TableName: TABLE, Item: item }));
@@ -80,3 +47,5 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     return errorResponse(err);
   }
 };
+
+export const lambdaHandler = withAccessLog(handler);

@@ -1,3 +1,4 @@
+// subjects/index.ts
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
@@ -5,8 +6,9 @@ import { docClient, TABLE } from '../libs/dynamodb';
 import { authenticate, authorize } from '../middleware/auth';
 import { validateCreateSubject } from '../validators';
 import { ok, created, errorResponse } from '../utils/response';
+import { withAccessLog } from '../middleware/accessLog';
 
-export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const user = await authenticate(event);
     const method = event.httpMethod;
@@ -17,10 +19,8 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
       const schoolId = event.queryStringParameters?.schoolId;
       if (!schoolId) return errorResponse({ statusCode: 400, message: 'schoolId required' });
-
       const result = await docClient.send(new QueryCommand({
-        TableName: TABLE,
-        IndexName: 'GSI1',
+        TableName: TABLE, IndexName: 'GSI1',
         KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
         ExpressionAttributeValues: { ':pk': `SCHOOL#${schoolId}#SUBJECTS`, ':sk': 'SUBJECT#' },
       }));
@@ -30,18 +30,12 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     if (method === 'POST' && path === '/subjects') {
       authorize(user, ['DIRECTOR', 'MANAGER']);
       validateCreateSubject(body);
-
       const subjectId = randomUUID();
       const item = {
-        PK: `SCHOOL#${body.schoolId}`,
-        SK: `SUBJECT#${subjectId}`,
-        GSI1PK: `SCHOOL#${body.schoolId}#SUBJECTS`,
-        GSI1SK: `SUBJECT#${subjectId}`,
-        entityType: 'SUBJECT',
-        subjectId,
-        schoolId: body.schoolId,
-        name: body.name,
-        description: body.description ?? null,
+        PK: `SCHOOL#${body.schoolId}`, SK: `SUBJECT#${subjectId}`,
+        GSI1PK: `SCHOOL#${body.schoolId}#SUBJECTS`, GSI1SK: `SUBJECT#${subjectId}`,
+        entityType: 'SUBJECT', subjectId, schoolId: body.schoolId,
+        name: body.name, description: body.description ?? null,
         createdAt: new Date().toISOString(),
       };
       await docClient.send(new PutCommand({ TableName: TABLE, Item: item }));
@@ -53,3 +47,5 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     return errorResponse(err);
   }
 };
+
+export const lambdaHandler = withAccessLog(handler);

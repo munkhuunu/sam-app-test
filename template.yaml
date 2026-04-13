@@ -62,7 +62,6 @@ Resources:
           Projection:
             ProjectionType: ALL
 
-  # ========== Lambda Functions ==========
   AuthFunction:
     Type: AWS::Serverless::Function
     Properties:

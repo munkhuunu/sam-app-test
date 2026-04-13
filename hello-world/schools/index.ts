@@ -6,8 +6,9 @@ import { authenticate, authorize } from '../middleware/auth';
 import { validateCreateSchool, validateCreateClass } from '../validators';
 import { ok, created, errorResponse } from '../utils/response';
 import { NotFoundError } from '../utils/errors';
+import { withAccessLog } from '../middleware/accessLog';
 
-export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const user = await authenticate(event);
     const method = event.httpMethod;
@@ -32,23 +33,16 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       if (method === 'POST') {
         authorize(user, ['DIRECTOR', 'MANAGER']);
         validateCreateClass(body);
-
         const school = await docClient.send(new GetCommand({
           TableName: TABLE, Key: { PK: `SCHOOL#${schoolId}`, SK: `SCHOOL#${schoolId}` },
         }));
         if (!school.Item) throw new NotFoundError('School not found');
-
         const classId = randomUUID();
         const item = {
-          PK: `SCHOOL#${schoolId}`,
-          SK: `CLASS#${classId}`,
-          GSI1PK: `CLASS#${classId}`,
-          GSI1SK: `CLASS#${classId}`,
-          entityType: 'CLASS',
-          classId, schoolId,
-          name: body.name,
-          grade: body.grade,
-          createdAt: new Date().toISOString(),
+          PK: `SCHOOL#${schoolId}`, SK: `CLASS#${classId}`,
+          GSI1PK: `CLASS#${classId}`, GSI1SK: `CLASS#${classId}`,
+          entityType: 'CLASS', classId, schoolId,
+          name: body.name, grade: body.grade, createdAt: new Date().toISOString(),
         };
         await docClient.send(new PutCommand({ TableName: TABLE, Item: item }));
         return created(item);
@@ -58,8 +52,7 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     if (method === 'GET' && path === '/schools') {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
       const result = await docClient.send(new QueryCommand({
-        TableName: TABLE,
-        IndexName: 'GSI1',
+        TableName: TABLE, IndexName: 'GSI1',
         KeyConditionExpression: 'GSI1PK = :pk',
         ExpressionAttributeValues: { ':pk': 'SCHOOLS' },
       }));
@@ -79,17 +72,12 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     if (method === 'POST' && path === '/schools') {
       authorize(user, ['DIRECTOR']);
       validateCreateSchool(body);
-
       const schoolId = randomUUID();
       const item = {
-        PK: `SCHOOL#${schoolId}`,
-        SK: `SCHOOL#${schoolId}`,
-        GSI1PK: 'SCHOOLS',
-        GSI1SK: `SCHOOL#${schoolId}`,
-        entityType: 'SCHOOL',
-        schoolId,
-        name: body.name,
-        createdAt: new Date().toISOString(),
+        PK: `SCHOOL#${schoolId}`, SK: `SCHOOL#${schoolId}`,
+        GSI1PK: 'SCHOOLS', GSI1SK: `SCHOOL#${schoolId}`,
+        entityType: 'SCHOOL', schoolId,
+        name: body.name, createdAt: new Date().toISOString(),
       };
       await docClient.send(new PutCommand({ TableName: TABLE, Item: item }));
       return created(item);
@@ -100,3 +88,5 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     return errorResponse(err);
   }
 };
+
+export const lambdaHandler = withAccessLog(handler);

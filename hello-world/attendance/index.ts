@@ -4,8 +4,9 @@ import { docClient, TABLE } from '../libs/dynamodb';
 import { authenticate, authorize } from '../middleware/auth';
 import { validateMarkAttendance } from '../validators';
 import { ok, created, errorResponse } from '../utils/response';
+import { withAccessLog } from '../middleware/accessLog';
 
-export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const user = await authenticate(event);
     const method = event.httpMethod;
@@ -24,7 +25,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
         keyExpr += ' AND begins_with(GSI1SK, :date)';
         exprValues[':date'] = `DATE#${date}`;
       }
-
       const result = await docClient.send(new QueryCommand({
         TableName: TABLE, IndexName: 'GSI1',
         KeyConditionExpression: keyExpr,
@@ -33,7 +33,6 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
       return ok(result.Items ?? []);
     }
 
-    // GET /attendance/{studentId} — student's attendance history
     const studentMatch = path.match(/\/attendance\/([^\/]+)/);
     if (method === 'GET' && studentMatch && studentMatch[1] !== 'undefined') {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER', 'PARENT', 'STUDENT']);
@@ -58,24 +57,18 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
         GSI2PK: `STUDENT#${r.studentId}#ATTENDANCE`,
         GSI2SK: `DATE#${body.date}`,
         entityType: 'ATTENDANCE',
-        classId: body.classId,
-        studentId: r.studentId,
-        date: body.date,
-        status: r.status,
-        note: r.note ?? null,
-        markedBy: user.userId,
+        classId: body.classId, studentId: r.studentId,
+        date: body.date, status: r.status,
+        note: r.note ?? null, markedBy: user.userId,
         createdAt: new Date().toISOString(),
       }));
 
       for (let i = 0; i < items.length; i += 25) {
         const batch = items.slice(i, i + 25);
         await docClient.send(new BatchWriteCommand({
-          RequestItems: {
-            [TABLE]: batch.map((item: any) => ({ PutRequest: { Item: item } })),
-          },
+          RequestItems: { [TABLE]: batch.map((item: any) => ({ PutRequest: { Item: item } })) },
         }));
       }
-
       return created({ message: 'Attendance marked', count: items.length });
     }
 
@@ -84,3 +77,5 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     return errorResponse(err);
   }
 };
+
+export const lambdaHandler = withAccessLog(handler);

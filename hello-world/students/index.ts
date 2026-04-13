@@ -6,8 +6,9 @@ import { authenticate, authorize } from '../middleware/auth';
 import { validateCreateStudent } from '../validators';
 import { ok, created, noContent, errorResponse } from '../utils/response';
 import { NotFoundError } from '../utils/errors';
+import { withAccessLog } from '../middleware/accessLog';
 
-export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const user = await authenticate(event);
     const method = event.httpMethod;
@@ -19,8 +20,7 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     if (method === 'GET' && classId) {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
       const result = await docClient.send(new QueryCommand({
-        TableName: TABLE,
-        IndexName: 'GSI1',
+        TableName: TABLE, IndexName: 'GSI1',
         KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
         ExpressionAttributeValues: { ':pk': `CLASS#${classId}`, ':sk': 'STUDENT#' },
       }));
@@ -30,8 +30,7 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     if (method === 'GET' && studentId && path.endsWith('/grades')) {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER', 'PARENT', 'STUDENT']);
       const result = await docClient.send(new QueryCommand({
-        TableName: TABLE,
-        IndexName: 'GSI1',
+        TableName: TABLE, IndexName: 'GSI1',
         KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
         ExpressionAttributeValues: { ':pk': `STUDENT#${studentId}#GRADES`, ':sk': 'GRADE#' },
       }));
@@ -41,8 +40,7 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     if (method === 'GET' && studentId) {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER', 'PARENT', 'STUDENT']);
       const result = await docClient.send(new QueryCommand({
-        TableName: TABLE,
-        IndexName: 'GSI2',
+        TableName: TABLE, IndexName: 'GSI2',
         KeyConditionExpression: 'GSI2PK = :pk',
         ExpressionAttributeValues: { ':pk': `STUDENT#${studentId}` },
       }));
@@ -53,23 +51,15 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     if (method === 'POST') {
       authorize(user, ['DIRECTOR', 'MANAGER']);
       validateCreateStudent(body);
-
       const id = randomUUID();
       const item = {
-        PK: `SCHOOL#${body.schoolId}`,
-        SK: `STUDENT#${id}`,
-        GSI1PK: `CLASS#${body.classId}`,
-        GSI1SK: `STUDENT#${id}`,
-        GSI2PK: `STUDENT#${id}`,
-        GSI2SK: `STUDENT#${id}`,
-        entityType: 'STUDENT',
-        studentId: id,
-        classId: body.classId,
-        schoolId: body.schoolId,
-        lastName: body.lastName,
-        firstName: body.firstName,
-        phone: body.phone ?? null,
-        email: body.email ?? null,
+        PK: `SCHOOL#${body.schoolId}`, SK: `STUDENT#${id}`,
+        GSI1PK: `CLASS#${body.classId}`, GSI1SK: `STUDENT#${id}`,
+        GSI2PK: `STUDENT#${id}`, GSI2SK: `STUDENT#${id}`,
+        entityType: 'STUDENT', studentId: id,
+        classId: body.classId, schoolId: body.schoolId,
+        lastName: body.lastName, firstName: body.firstName,
+        phone: body.phone ?? null, email: body.email ?? null,
         createdAt: new Date().toISOString(),
       };
       await docClient.send(new PutCommand({ TableName: TABLE, Item: item }));
@@ -79,8 +69,7 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     if (method === 'DELETE' && studentId) {
       authorize(user, ['DIRECTOR']);
       const find = await docClient.send(new QueryCommand({
-        TableName: TABLE,
-        IndexName: 'GSI2',
+        TableName: TABLE, IndexName: 'GSI2',
         KeyConditionExpression: 'GSI2PK = :pk',
         ExpressionAttributeValues: { ':pk': `STUDENT#${studentId}` },
       }));
@@ -97,3 +86,5 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     return errorResponse(err);
   }
 };
+
+export const lambdaHandler = withAccessLog(handler);

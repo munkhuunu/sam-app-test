@@ -1,20 +1,19 @@
+// dashboard/index.ts
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient, TABLE } from '../libs/dynamodb';
 import { authenticate, authorize } from '../middleware/auth';
 import { ok, errorResponse } from '../utils/response';
+import { withAccessLog } from '../middleware/accessLog';
 
-export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const user = await authenticate(event);
     authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
 
     const [schools, classes, students, teachers, subjects] = await Promise.all([
-      countByType('SCHOOL'),
-      countByType('CLASS'),
-      countByType('STUDENT'),
-      countByType('TEACHER'),
-      countByType('SUBJECT'),
+      countByType('SCHOOL'), countByType('CLASS'), countByType('STUDENT'),
+      countByType('TEACHER'), countByType('SUBJECT'),
     ]);
 
     const today = new Date().toISOString().slice(0, 10);
@@ -44,6 +43,8 @@ export const lambdaHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
     return errorResponse(err);
   }
 };
+
+export const lambdaHandler = withAccessLog(handler);
 
 async function countByType(entityType: string): Promise<number> {
   const result = await docClient.send(new ScanCommand({
