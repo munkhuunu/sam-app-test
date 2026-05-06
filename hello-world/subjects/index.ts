@@ -1,10 +1,9 @@
-// subjects/index.ts
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import { QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 import { docClient, TABLE } from '../libs/dynamodb';
 import { authenticate, authorize } from '../middleware/auth';
-import { validateCreateSubject } from '../validators';
+import { enforceSchoolTenant } from '../middleware/tenant';
 import { ok, created, errorResponse } from '../utils/response';
 import { withAccessLog } from '../middleware/accessLog';
 
@@ -12,13 +11,13 @@ const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResu
   try {
     const user = await authenticate(event);
     const method = event.httpMethod;
-    const path = event.path;
     const body = JSON.parse(event.body ?? '{}');
+    const schoolId = event.pathParameters?.schoolId ?? user.schoolId ?? '';
 
-    if (method === 'GET' && path === '/subjects') {
-      authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
-      const schoolId = event.queryStringParameters?.schoolId;
-      if (!schoolId) return errorResponse({ statusCode: 400, message: 'schoolId required' });
+    enforceSchoolTenant(user, schoolId);
+
+    if (method === 'GET') {
+      authorize(user, ['SUPER_ADMIN', 'DIRECTOR', 'MANAGER', 'TEACHER', 'STUDENT', 'PARENT']);
       const result = await docClient.send(new QueryCommand({
         TableName: TABLE, IndexName: 'GSI1',
         KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
@@ -27,14 +26,14 @@ const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResu
       return ok(result.Items ?? []);
     }
 
-    if (method === 'POST' && path === '/subjects') {
-      authorize(user, ['DIRECTOR', 'MANAGER']);
-      validateCreateSubject(body);
+    if (method === 'POST') {
+      authorize(user, ['SUPER_ADMIN', 'DIRECTOR', 'MANAGER']);
+      if (!body.name) return errorResponse({ statusCode: 400, message: 'name required' });
       const subjectId = randomUUID();
       const item = {
-        PK: `SCHOOL#${body.schoolId}`, SK: `SUBJECT#${subjectId}`,
-        GSI1PK: `SCHOOL#${body.schoolId}#SUBJECTS`, GSI1SK: `SUBJECT#${subjectId}`,
-        entityType: 'SUBJECT', subjectId, schoolId: body.schoolId,
+        PK: `SCHOOL#${schoolId}`, SK: `SUBJECT#${subjectId}`,
+        GSI1PK: `SCHOOL#${schoolId}#SUBJECTS`, GSI1SK: `SUBJECT#${subjectId}`,
+        entityType: 'SUBJECT', subjectId, schoolId,
         name: body.name, description: body.description ?? null,
         createdAt: new Date().toISOString(),
       };

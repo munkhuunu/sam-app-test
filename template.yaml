@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: School Management System v2
+Description: School Management System v3 — multi-tenant, invitation-based
 
 Globals:
   Api:
@@ -20,7 +20,6 @@ Globals:
       - arm64
 
 Resources:
-  # ========== DynamoDB Single Table ==========
   SchoolTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -114,6 +113,37 @@ Resources:
       BuildProperties:
         EntryPoints: [schools/index.ts]
 
+  InvitationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello-world/
+      Handler: invitations/index.lambdaHandler
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: sam-app-test/jwt-secret
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SchoolTable
+      Events:
+        InviteValidate:
+          Type: Api
+          Properties:
+            Path: /invitations/validate/{token}
+            Method: GET
+        InvitesBySchool:
+          Type: Api
+          Properties:
+            Path: /schools/{schoolId}/invitations
+            Method: ANY
+        InviteByToken:
+          Type: Api
+          Properties:
+            Path: /schools/{schoolId}/invitations/{token}
+            Method: ANY
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [invitations/index.ts]
+
   StudentsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -125,20 +155,15 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref SchoolTable
       Events:
-        StudentsRoot:
+        SchoolStudents:
           Type: Api
           Properties:
-            Path: /students
+            Path: /schools/{schoolId}/students
             Method: ANY
-        StudentById:
+        SchoolStudentById:
           Type: Api
           Properties:
-            Path: /students/{studentId}
-            Method: ANY
-        StudentGrades:
-          Type: Api
-          Properties:
-            Path: /students/{studentId}/grades
+            Path: /schools/{schoolId}/students/{studentId}
             Method: ANY
         ClassStudents:
           Type: Api
@@ -161,16 +186,16 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref SchoolTable
       Events:
-        TeachersRoot:
+        SchoolTeachers:
           Type: Api
           Properties:
-            Path: /teachers
+            Path: /schools/{schoolId}/teachers
             Method: ANY
         TeachersAssign:
           Type: Api
           Properties:
-            Path: /teachers/assign
-            Method: ANY
+            Path: /schools/{schoolId}/teachers/assign
+            Method: POST
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -187,36 +212,103 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref SchoolTable
       Events:
-        SubjectsRoot:
+        SchoolSubjects:
           Type: Api
           Properties:
-            Path: /subjects
+            Path: /schools/{schoolId}/subjects
             Method: ANY
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
         EntryPoints: [subjects/index.ts]
 
-  GradesFunction:
+  AssignmentsFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: hello-world/
-      Handler: grades/index.lambdaHandler
+      Handler: assignments/index.lambdaHandler
       Policies:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
         - DynamoDBCrudPolicy:
             TableName: !Ref SchoolTable
       Events:
-        GradesRoot:
+        SchoolAssignments:
           Type: Api
           Properties:
-            Path: /grades
+            Path: /schools/{schoolId}/assignments
+            Method: ANY
+        AssignmentById:
+          Type: Api
+          Properties:
+            Path: /schools/{schoolId}/assignments/{assignmentId}
+            Method: ANY
+        AssignmentGrades:
+          Type: Api
+          Properties:
+            Path: /schools/{schoolId}/assignments/{assignmentId}/grades
+            Method: ANY
+        StudentGrades:
+          Type: Api
+          Properties:
+            Path: /schools/{schoolId}/students/{studentId}/grades
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [assignments/index.ts]
+
+  AnnouncementsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello-world/
+      Handler: announcements/index.lambdaHandler
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: sam-app-test/jwt-secret
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SchoolTable
+      Events:
+        Announcements:
+          Type: Api
+          Properties:
+            Path: /schools/{schoolId}/announcements
             Method: ANY
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        EntryPoints: [grades/index.ts]
+        EntryPoints: [announcements/index.ts]
+
+  ParentsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello-world/
+      Handler: parents/index.lambdaHandler
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: sam-app-test/jwt-secret
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SchoolTable
+      Events:
+        ParentStudents:
+          Type: Api
+          Properties:
+            Path: /schools/{schoolId}/parents/{parentId}/students
+            Method: ANY
+        ParentStudentById:
+          Type: Api
+          Properties:
+            Path: /schools/{schoolId}/parents/{parentId}/students/{studentId}
+            Method: ANY
+        StudentParents:
+          Type: Api
+          Properties:
+            Path: /schools/{schoolId}/students/{studentId}/parents
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [parents/index.ts]
 
   AttendanceFunction:
     Type: AWS::Serverless::Function
