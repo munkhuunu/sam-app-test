@@ -1,22 +1,21 @@
 import jwt from 'jsonwebtoken';
 import { getJwtSecret } from '../libs/ssm';
 
+export type UserRole = 'SUPER_ADMIN' | 'DIRECTOR' | 'MANAGER' | 'TEACHER' | 'STUDENT' | 'PARENT';
+
 export interface AuthUser {
   userId: string;
   email: string;
-  role: string;
+  role: UserRole;
   schoolId?: string;
-  classId?: string;
   studentId?: string;
 }
 
 export const authenticate = async (event: any): Promise<AuthUser> => {
   const authHeader = event.headers?.Authorization || event.headers?.authorization;
   if (!authHeader) throw { statusCode: 401, message: 'Unauthorized' };
-
   const token = authHeader.replace('Bearer ', '');
   const secret = await getJwtSecret();
-
   try {
     return jwt.verify(token, secret) as AuthUser;
   } catch {

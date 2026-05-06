@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { docClient, TABLE } from '../libs/dynamodb';
 import { authenticate, authorize } from '../middleware/auth';
 import { enforceSchoolTenant } from '../middleware/tenant';
+import { validateCreateAnnouncement } from '../validators';
 import { ok, created, errorResponse } from '../utils/response';
 import { withAccessLog } from '../middleware/accessLog';
 
@@ -18,24 +19,34 @@ const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResu
 
     if (method === 'GET') {
       authorize(user, ['SUPER_ADMIN', 'DIRECTOR', 'MANAGER', 'TEACHER', 'STUDENT', 'PARENT']);
+      const audience = event.queryStringParameters?.audience;
       const result = await docClient.send(new QueryCommand({
-        TableName: TABLE, IndexName: 'GSI1',
-        KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
-        ExpressionAttributeValues: { ':pk': `SCHOOL#${schoolId}#SUBJECTS`, ':sk': 'SUBJECT#' },
+        TableName: TABLE,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
+        ExpressionAttributeValues: { ':pk': `SCHOOL#${schoolId}`, ':sk': 'ANNOUNCE#' },
+        ScanIndexForward: false,
+        Limit: 50,
       }));
-      return ok(result.Items ?? []);
+      const items = result.Items ?? [];
+      const filtered = audience
+        ? items.filter(i => i.audience === 'ALL' || i.audience === audience)
+        : items;
+      return ok(filtered);
     }
 
     if (method === 'POST') {
-      authorize(user, ['SUPER_ADMIN', 'DIRECTOR', 'MANAGER']);
-      if (!body.name) return errorResponse({ statusCode: 400, message: 'name required' });
-      const subjectId = randomUUID();
+      authorize(user, ['SUPER_ADMIN', 'DIRECTOR', 'MANAGER', 'TEACHER']);
+      validateCreateAnnouncement(body);
+      const id = randomUUID();
+      const ts = new Date().toISOString();
       const item = {
-        PK: `SCHOOL#${schoolId}`, SK: `SUBJECT#${subjectId}`,
-        GSI1PK: `SCHOOL#${schoolId}#SUBJECTS`, GSI1SK: `SUBJECT#${subjectId}`,
-        entityType: 'SUBJECT', subjectId, schoolId,
-        name: body.name, description: body.description ?? null,
-        createdAt: new Date().toISOString(),
+        PK: `SCHOOL#${schoolId}`, SK: `ANNOUNCE#${ts}#${id}`,
+        GSI1PK: `SCHOOL#${schoolId}#ANNOUNCE`, GSI1SK: `ANNOUNCE#${id}`,
+        entityType: 'ANNOUNCEMENT', announcementId: id,
+        schoolId, title: body.title, content: body.content,
+        audience: body.audience ?? 'ALL',
+        authorId: user.userId, authorRole: user.role,
+        createdAt: ts,
       };
       await docClient.send(new PutCommand({ TableName: TABLE, Item: item }));
       return created(item);
