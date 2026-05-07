@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # load-test.sh — generate API traffic to populate CloudWatch metrics & dashboard
-# Usage: ./scripts/load-test.sh --api-url https://xxxx.execute-api.ap-northeast-1.amazonaws.com/Prod
+# Usage: ./scripts/load-test.sh [--api-url https://xxxx.execute-api.ap-northeast-1.amazonaws.com/Prod]
 #          [--requests 200] [--concurrency 5] [--jwt <token>]
 #
 # Prerequisites: curl, jq
@@ -8,18 +8,18 @@
 
 set -euo pipefail
 
-# ── defaults ─────────────────────────────────────────────────────────────────
-API_URL=""
+# ── defaults ──────────────────────────────────────────────────────────────────
+API_URL="https://1lc7o3pgg0.execute-api.ap-northeast-1.amazonaws.com/Prod"
 REQUESTS=200
 CONCURRENCY=5
 JWT=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --api-url)     API_URL="$2";     shift 2 ;;
-    --requests)    REQUESTS="$2";   shift 2 ;;
-    --concurrency) CONCURRENCY="$2"; shift 2 ;;
-    --jwt)         JWT="$2";         shift 2 ;;
+    --api-url)     API_URL="$2";      shift 2 ;;
+    --requests)    REQUESTS="$2";     shift 2 ;;
+    --concurrency) CONCURRENCY="$2";  shift 2 ;;
+    --jwt)         JWT="$2";          shift 2 ;;
     *) echo "Unknown arg: $1"; exit 1 ;;
   esac
 done
@@ -43,11 +43,12 @@ if [[ -z "$JWT" ]]; then
   echo "ERROR: --jwt required (or run seed.sh first)"; exit 1
 fi
 
-# ── discover schoolId ────────────────────────────────────────────────────────
+# ── discover schoolId ─────────────────────────────────────────────────────────
+# FIX: schools/index.ts returns `schoolId` field, not `id`
 SCHOOLS=$(curl -sf -H "Authorization: Bearer $JWT" "$API_URL/schools" || echo '[]')
-SCHOOL_ID=$(echo "$SCHOOLS" | jq -r '.[0].id // .data[0].id // ""')
+SCHOOL_ID=$(echo "$SCHOOLS" | jq -r '.[0].schoolId // .[0].id // .data[0].schoolId // .data[0].id // empty')
 if [[ -z "$SCHOOL_ID" || "$SCHOOL_ID" == "null" ]]; then
-  echo "WARNING: no schoolId found — only unauthenticated endpoints will be hit"
+  echo "WARNING: no schoolId found — school-specific endpoints will be skipped"
   SCHOOL_ID="unknown"
 fi
 echo "=> API: $API_URL"
@@ -55,7 +56,7 @@ echo "=> School: $SCHOOL_ID"
 echo "=> Sending $REQUESTS requests ($CONCURRENCY concurrent)"
 echo
 
-# ── endpoint list ────────────────────────────────────────────────────────────
+# ── endpoint list ─────────────────────────────────────────────────────────────
 ENDPOINTS=(
   "/dashboard"
   "/schools"
@@ -69,7 +70,7 @@ ENDPOINTS=(
 )
 N_EP=${#ENDPOINTS[@]}
 
-# ── worker ───────────────────────────────────────────────────────────────────
+# ── worker ────────────────────────────────────────────────────────────────────
 _fire() {
   local idx=$1
   local ep="${ENDPOINTS[$((idx % N_EP))]}"
@@ -82,9 +83,8 @@ _fire() {
 export -f _fire
 export API_URL JWT ENDPOINTS N_EP
 
-# ── run with xargs parallelism ────────────────────────────────────────────────
+# ── run ───────────────────────────────────────────────────────────────────────
 START=$(date +%s)
-OK=0; ERR=0
 
 seq 0 $((REQUESTS - 1)) | xargs -P "$CONCURRENCY" -I{} bash -c '_fire "$@"' _ {} | \
   tee /tmp/load_test_log.txt | \
