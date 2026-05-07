@@ -372,7 +372,7 @@ Resources:
       TopicName: sam-app-test-alerts
       Subscription:
         - Protocol: email
-          Endpoint: munkhbaatarb445@gmail.com   # ← өөрийн email солино уу
+          Endpoint: munkhbaatarb445@gmail.com
 
   # ════════════════════════════════════════════
   # Monitoring — Lambda Error Alarms
@@ -676,19 +676,21 @@ Resources:
                 "title": "Lambda Errors (бүх function)",
                 "view": "timeSeries",
                 "stacked": false,
+                "region": "${AWS::Region}",
                 "period": 60,
                 "stat": "Sum",
+                "annotations": {"horizontal": []},
                 "metrics": [
-                  ["AWS/Lambda", "Errors", "FunctionName", "${AuthFunction}",        {"label": "Auth"}],
-                  ["AWS/Lambda", "Errors", "FunctionName", "${SchoolsFunction}",     {"label": "Schools"}],
-                  ["AWS/Lambda", "Errors", "FunctionName", "${StudentsFunction}",    {"label": "Students"}],
-                  ["AWS/Lambda", "Errors", "FunctionName", "${TeachersFunction}",    {"label": "Teachers"}],
-                  ["AWS/Lambda", "Errors", "FunctionName", "${AssignmentsFunction}", {"label": "Assignments"}],
-                  ["AWS/Lambda", "Errors", "FunctionName", "${InvitationsFunction}", {"label": "Invitations"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${AuthFunction}",         {"label": "Auth"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${SchoolsFunction}",      {"label": "Schools"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${StudentsFunction}",     {"label": "Students"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${TeachersFunction}",     {"label": "Teachers"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${AssignmentsFunction}",  {"label": "Assignments"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${InvitationsFunction}",  {"label": "Invitations"}],
                   ["AWS/Lambda", "Errors", "FunctionName", "${AnnouncementsFunction}",{"label": "Announcements"}],
-                  ["AWS/Lambda", "Errors", "FunctionName", "${ParentsFunction}",     {"label": "Parents"}],
-                  ["AWS/Lambda", "Errors", "FunctionName", "${AttendanceFunction}",  {"label": "Attendance"}],
-                  ["AWS/Lambda", "Errors", "FunctionName", "${DashboardFunction}",   {"label": "Dashboard"}]
+                  ["AWS/Lambda", "Errors", "FunctionName", "${ParentsFunction}",      {"label": "Parents"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${AttendanceFunction}",   {"label": "Attendance"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${DashboardFunction}",    {"label": "Dashboard"}]
                 ]
               }
             },
@@ -699,19 +701,21 @@ Resources:
                 "title": "Lambda Invocations (бүх function)",
                 "view": "timeSeries",
                 "stacked": false,
+                "region": "${AWS::Region}",
                 "period": 60,
                 "stat": "Sum",
+                "annotations": {"horizontal": []},
                 "metrics": [
-                  ["AWS/Lambda", "Invocations", "FunctionName", "${AuthFunction}",        {"label": "Auth"}],
-                  ["AWS/Lambda", "Invocations", "FunctionName", "${SchoolsFunction}",     {"label": "Schools"}],
-                  ["AWS/Lambda", "Invocations", "FunctionName", "${StudentsFunction}",    {"label": "Students"}],
-                  ["AWS/Lambda", "Invocations", "FunctionName", "${TeachersFunction}",    {"label": "Teachers"}],
-                  ["AWS/Lambda", "Invocations", "FunctionName", "${AssignmentsFunction}", {"label": "Assignments"}],
-                  ["AWS/Lambda", "Invocations", "FunctionName", "${InvitationsFunction}", {"label": "Invitations"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${AuthFunction}",         {"label": "Auth"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${SchoolsFunction}",      {"label": "Schools"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${StudentsFunction}",     {"label": "Students"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${TeachersFunction}",     {"label": "Teachers"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${AssignmentsFunction}",  {"label": "Assignments"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${InvitationsFunction}",  {"label": "Invitations"}],
                   ["AWS/Lambda", "Invocations", "FunctionName", "${AnnouncementsFunction}",{"label": "Announcements"}],
-                  ["AWS/Lambda", "Invocations", "FunctionName", "${ParentsFunction}",     {"label": "Parents"}],
-                  ["AWS/Lambda", "Invocations", "FunctionName", "${AttendanceFunction}",  {"label": "Attendance"}],
-                  ["AWS/Lambda", "Invocations", "FunctionName", "${DashboardFunction}",   {"label": "Dashboard"}]
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${ParentsFunction}",      {"label": "Parents"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${AttendanceFunction}",   {"label": "Attendance"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${DashboardFunction}",    {"label": "Dashboard"}]
                 ]
               }
             },
@@ -722,32 +726,36 @@ Resources:
                 "title": "Lambda Duration p95 (ms)",
                 "view": "timeSeries",
                 "stacked": false,
+                "region": "${AWS::Region}",
                 "period": 300,
                 "stat": "p95",
+                "annotations": {
+                  "horizontal": [{"label": "Timeout threshold", "value": 8000, "color": "#ff0000"}]
+                },
                 "metrics": [
                   ["AWS/Lambda", "Duration", "FunctionName", "${AuthFunction}",        {"label": "Auth"}],
                   ["AWS/Lambda", "Duration", "FunctionName", "${SchoolsFunction}",     {"label": "Schools"}],
                   ["AWS/Lambda", "Duration", "FunctionName", "${StudentsFunction}",    {"label": "Students"}],
                   ["AWS/Lambda", "Duration", "FunctionName", "${TeachersFunction}",    {"label": "Teachers"}],
                   ["AWS/Lambda", "Duration", "FunctionName", "${AssignmentsFunction}", {"label": "Assignments"}]
-                ],
-                "annotations": {
-                  "horizontal": [{"label": "Timeout threshold", "value": 8000, "color": "#ff0000"}]
-                }
+                ]
               }
             },
             {
               "type": "metric",
               "x": 12, "y": 10, "width": 12, "height": 6,
               "properties": {
-                "title": "API Gateway — Requests & 5xx Errors",
+                "title": "API Gateway — Requests & Errors",
                 "view": "timeSeries",
                 "stacked": false,
+                "region": "${AWS::Region}",
                 "period": 60,
+                "stat": "Sum",
+                "annotations": {"horizontal": []},
                 "metrics": [
-                  ["AWS/ApiGateway", "Count",    "ApiName", "sam-app-test", "Stage", "Prod", {"label": "Total Requests", "stat": "Sum"}],
-                  ["AWS/ApiGateway", "5XXError",  "ApiName", "sam-app-test", "Stage", "Prod", {"label": "5xx Errors",      "stat": "Sum", "color": "#d62728"}],
-                  ["AWS/ApiGateway", "4XXError",  "ApiName", "sam-app-test", "Stage", "Prod", {"label": "4xx Errors",      "stat": "Sum", "color": "#ff7f0e"}]
+                  ["AWS/ApiGateway", "Count",    "ApiName", "sam-app-test", "Stage", "Prod", {"label": "Total Requests"}],
+                  ["AWS/ApiGateway", "5XXError", "ApiName", "sam-app-test", "Stage", "Prod", {"label": "5xx Errors", "color": "#d62728"}],
+                  ["AWS/ApiGateway", "4XXError", "ApiName", "sam-app-test", "Stage", "Prod", {"label": "4xx Errors", "color": "#ff7f0e"}]
                 ]
               }
             },
@@ -758,10 +766,13 @@ Resources:
                 "title": "DynamoDB — Read/Write Capacity",
                 "view": "timeSeries",
                 "stacked": false,
+                "region": "${AWS::Region}",
                 "period": 60,
+                "stat": "Sum",
+                "annotations": {"horizontal": []},
                 "metrics": [
-                  ["AWS/DynamoDB", "ConsumedReadCapacityUnits",  "TableName", "school-management", {"label": "Read CU",  "stat": "Sum"}],
-                  ["AWS/DynamoDB", "ConsumedWriteCapacityUnits", "TableName", "school-management", {"label": "Write CU", "stat": "Sum"}]
+                  ["AWS/DynamoDB", "ConsumedReadCapacityUnits",  "TableName", "school-management", {"label": "Read CU"}],
+                  ["AWS/DynamoDB", "ConsumedWriteCapacityUnits", "TableName", "school-management", {"label": "Write CU"}]
                 ]
               }
             },
@@ -772,12 +783,15 @@ Resources:
                 "title": "DynamoDB — Throttles & Latency",
                 "view": "timeSeries",
                 "stacked": false,
+                "region": "${AWS::Region}",
                 "period": 60,
+                "stat": "Sum",
+                "annotations": {"horizontal": []},
                 "metrics": [
-                  ["AWS/DynamoDB", "ThrottledRequests",        "TableName", "school-management", {"label": "Throttles",         "stat": "Sum",  "color": "#d62728"}],
-                  ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", "school-management", "Operation", "GetItem",        {"label": "GetItem p99 (ms)",   "stat": "p99"}],
-                  ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", "school-management", "Operation", "PutItem",        {"label": "PutItem p99 (ms)",   "stat": "p99"}],
-                  ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", "school-management", "Operation", "Query",          {"label": "Query p99 (ms)",     "stat": "p99"}]
+                  ["AWS/DynamoDB", "ThrottledRequests",        "TableName", "school-management", {"label": "Throttles", "color": "#d62728"}],
+                  ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", "school-management", "Operation", "GetItem", {"label": "GetItem p99", "stat": "p99"}],
+                  ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", "school-management", "Operation", "PutItem", {"label": "PutItem p99", "stat": "p99"}],
+                  ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", "school-management", "Operation", "Query",   {"label": "Query p99",   "stat": "p99"}]
                 ]
               }
             }
