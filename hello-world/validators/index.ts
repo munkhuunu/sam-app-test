@@ -42,6 +42,7 @@ export const validateTeacherSubjectAssignment = (body: any) => {
 };
 
 export const validateCreateSubject = (body: any) => {
+  console.log('v2');
   if (!body.name) throw new BadRequestError('name required');
 };
 
