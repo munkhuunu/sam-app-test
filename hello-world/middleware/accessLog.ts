@@ -62,7 +62,7 @@ export function withAccessLog(handler: Handler): Handler {
     const userAgent = event.headers?.['User-Agent'] ?? event.headers?.['user-agent'] ?? null;
     const log       = new Logger({ requestId, method, path });
 
-    log.info('REQUEST_START');
+    log.info('REQUEST_START_CHECK');
 
     let result: APIGatewayProxyResult;
     let errorMessage: string | undefined;
