@@ -10,7 +10,7 @@ Globals:
       AllowOrigin: "'*'"
   Function:
     Timeout: 10
-    Runtime: nodejs20.x
+    Runtime: nodejs22.x
     MemorySize: 128
     Tracing: Active
     AutoPublishAlias: live
