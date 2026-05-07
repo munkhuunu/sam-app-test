@@ -13,6 +13,13 @@ Globals:
     Runtime: nodejs20.x
     MemorySize: 128
     Tracing: Active
+    AutoPublishAlias: live
+    DeploymentPreference:
+      Type: Canary10Percent5Minutes
+      Alarms:
+        - !Ref AuthFunctionErrorAlarm
+        - !Ref ApiGateway5xxAlarm
+        - !Ref DynamoDBThrottleAlarm
     Environment:
       Variables:
         TABLE_NAME: !Ref SchoolTable
