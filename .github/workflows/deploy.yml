@@ -59,8 +59,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # No npm cache here — avoids ETXTBSY: both jobs sharing the same
-      # esbuild binary cache cause spawnSync to collide.
+      # No npm cache here — avoids ETXTBSY where two jobs sharing the
+      # same cached esbuild binary collide on spawnSync.
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -76,9 +76,15 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      # Install esbuild globally so it's on PATH for `sam build`'s
+      # NodejsNpmEsbuildBuilder. Pinning the version keeps Lambda
+      # bundles reproducible across runs.
+      - name: Install esbuild on PATH
+        run: npm install -g esbuild@0.21.5
+
       - name: Install Lambda dependencies
         working-directory: hello-world
-        run: npm install --ignore-scripts
+        run: npm ci
 
       - name: SAM validate
         run: sam validate --lint
