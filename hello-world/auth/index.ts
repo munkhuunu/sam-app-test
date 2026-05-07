@@ -23,7 +23,6 @@ const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResu
       let role: string = body.role;
 
       if (role === 'SUPER_ADMIN') {
-        // Only one SUPER_ADMIN allowed
         const existing = await docClient.send(new QueryCommand({
           TableName: TABLE, IndexName: 'GSI2',
           KeyConditionExpression: 'GSI2PK = :pk',
@@ -31,7 +30,6 @@ const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResu
         }));
         if (existing.Items?.length) throw new ConflictError('Super admin already exists');
       } else {
-        // All other roles require a valid invite token
         if (!body.inviteToken) throw new BadRequestError('inviteToken required');
         const inviteResult = await docClient.send(new QueryCommand({
           TableName: TABLE, IndexName: 'GSI1',
@@ -53,6 +51,7 @@ const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResu
           UpdateExpression: 'SET usedAt = :now, usedByEmail = :email',
           ExpressionAttributeValues: { ':now': new Date().toISOString(), ':email': body.email },
         }));
+    
       }
 
       const emailCheck = await docClient.send(new QueryCommand({
