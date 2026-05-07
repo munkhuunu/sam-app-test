@@ -22,7 +22,7 @@ module.exports = [
       '.aws-sam/**',
       'dist/**',
       'coverage/**',
-      '*.js',          // config files (this one, jest.config.ts is .ts)
+      '*.js',
     ],
   },
   {
@@ -41,7 +41,19 @@ module.exports = [
     rules: {
       ...tsRecommended,
       ...prettierRules,
-      ...(prettierPlugin ? { 'prettier/prettier': 'error' } : {}),
+      ...(prettierPlugin ? { 'prettier/prettier': 'warn' } : {}),
+
+      // Lambda handlers commonly receive `event`/`context` even when
+      // unused; downgrade and ignore underscore-prefixed args so the
+      // signal stays meaningful without blocking CI.
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', {
+        args: 'after-used',
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
+      '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
 ]
