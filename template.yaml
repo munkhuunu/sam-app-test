@@ -20,6 +20,9 @@ Globals:
       - arm64
 
 Resources:
+  # ════════════════════════════════════════════
+  # DynamoDB Table
+  # ════════════════════════════════════════════
   SchoolTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -61,6 +64,9 @@ Resources:
           Projection:
             ProjectionType: ALL
 
+  # ════════════════════════════════════════════
+  # Lambda Functions
+  # ════════════════════════════════════════════
   AuthFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -357,6 +363,427 @@ Resources:
       BuildProperties:
         EntryPoints: [dashboard/index.ts]
 
+  # ════════════════════════════════════════════
+  # Monitoring — SNS Topic
+  # ════════════════════════════════════════════
+  AlertTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: sam-app-test-alerts
+      Subscription:
+        - Protocol: email
+          Endpoint: munkhbaatarb445@gmail.com   # ← өөрийн email солино уу
+
+  # ════════════════════════════════════════════
+  # Monitoring — Lambda Error Alarms
+  # ════════════════════════════════════════════
+  AuthFunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-Auth-Errors
+      AlarmDescription: AuthFunction Lambda errors >= 1
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref AuthFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  SchoolsFunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-Schools-Errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref SchoolsFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  InvitationsFunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-Invitations-Errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref InvitationsFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  StudentsFunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-Students-Errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref StudentsFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  TeachersFunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-Teachers-Errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref TeachersFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  SubjectsFunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-Subjects-Errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref SubjectsFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  AssignmentsFunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-Assignments-Errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref AssignmentsFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  AnnouncementsFunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-Announcements-Errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref AnnouncementsFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  ParentsFunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-Parents-Errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref ParentsFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  AttendanceFunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-Attendance-Errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref AttendanceFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  DashboardFunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-Dashboard-Errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref DashboardFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  # ════════════════════════════════════════════
+  # Monitoring — Duration Alarm (Auth: хамгийн чухал)
+  # ════════════════════════════════════════════
+  AuthFunctionDurationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-Auth-HighDuration
+      AlarmDescription: AuthFunction p95 duration > 8s (timeout 10s)
+      Namespace: AWS/Lambda
+      MetricName: Duration
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref AuthFunction
+      ExtendedStatistic: p95
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 8000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  # ════════════════════════════════════════════
+  # Monitoring — API Gateway 5xx Alarm
+  # ════════════════════════════════════════════
+  ApiGateway5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-API-5xx-Errors
+      AlarmDescription: API Gateway 5xx errors >= 3 within 1 minute
+      Namespace: AWS/ApiGateway
+      MetricName: 5XXError
+      Dimensions:
+        - Name: ApiName
+          Value: sam-app-test
+        - Name: Stage
+          Value: Prod
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 3
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  # ════════════════════════════════════════════
+  # Monitoring — DynamoDB Throttle Alarm
+  # ════════════════════════════════════════════
+  DynamoDBThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-DynamoDB-Throttles
+      AlarmDescription: DynamoDB throttled requests >= 5
+      Namespace: AWS/DynamoDB
+      MetricName: ThrottledRequests
+      Dimensions:
+        - Name: TableName
+          Value: !Ref SchoolTable
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  # ════════════════════════════════════════════
+  # Monitoring — CloudWatch Dashboard
+  # ════════════════════════════════════════════
+  MonitoringDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: sam-app-test-dashboard
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "text",
+              "x": 0, "y": 0, "width": 24, "height": 1,
+              "properties": {
+                "markdown": "# 🏫 School Management System — Monitoring Dashboard"
+              }
+            },
+            {
+              "type": "alarm",
+              "x": 0, "y": 1, "width": 24, "height": 3,
+              "properties": {
+                "title": "🚨 Alarm Status",
+                "alarms": [
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Auth-Errors",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Schools-Errors",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Students-Errors",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Teachers-Errors",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Assignments-Errors",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Invitations-Errors",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Announcements-Errors",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Parents-Errors",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Attendance-Errors",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Dashboard-Errors",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Auth-HighDuration",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-API-5xx-Errors",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-DynamoDB-Throttles"
+                ]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 4, "width": 12, "height": 6,
+              "properties": {
+                "title": "Lambda Errors (бүх function)",
+                "view": "timeSeries",
+                "stacked": false,
+                "period": 60,
+                "stat": "Sum",
+                "metrics": [
+                  ["AWS/Lambda", "Errors", "FunctionName", "${AuthFunction}",        {"label": "Auth"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${SchoolsFunction}",     {"label": "Schools"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${StudentsFunction}",    {"label": "Students"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${TeachersFunction}",    {"label": "Teachers"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${AssignmentsFunction}", {"label": "Assignments"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${InvitationsFunction}", {"label": "Invitations"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${AnnouncementsFunction}",{"label": "Announcements"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${ParentsFunction}",     {"label": "Parents"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${AttendanceFunction}",  {"label": "Attendance"}],
+                  ["AWS/Lambda", "Errors", "FunctionName", "${DashboardFunction}",   {"label": "Dashboard"}]
+                ]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 4, "width": 12, "height": 6,
+              "properties": {
+                "title": "Lambda Invocations (бүх function)",
+                "view": "timeSeries",
+                "stacked": false,
+                "period": 60,
+                "stat": "Sum",
+                "metrics": [
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${AuthFunction}",        {"label": "Auth"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${SchoolsFunction}",     {"label": "Schools"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${StudentsFunction}",    {"label": "Students"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${TeachersFunction}",    {"label": "Teachers"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${AssignmentsFunction}", {"label": "Assignments"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${InvitationsFunction}", {"label": "Invitations"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${AnnouncementsFunction}",{"label": "Announcements"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${ParentsFunction}",     {"label": "Parents"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${AttendanceFunction}",  {"label": "Attendance"}],
+                  ["AWS/Lambda", "Invocations", "FunctionName", "${DashboardFunction}",   {"label": "Dashboard"}]
+                ]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 10, "width": 12, "height": 6,
+              "properties": {
+                "title": "Lambda Duration p95 (ms)",
+                "view": "timeSeries",
+                "stacked": false,
+                "period": 300,
+                "stat": "p95",
+                "metrics": [
+                  ["AWS/Lambda", "Duration", "FunctionName", "${AuthFunction}",        {"label": "Auth"}],
+                  ["AWS/Lambda", "Duration", "FunctionName", "${SchoolsFunction}",     {"label": "Schools"}],
+                  ["AWS/Lambda", "Duration", "FunctionName", "${StudentsFunction}",    {"label": "Students"}],
+                  ["AWS/Lambda", "Duration", "FunctionName", "${TeachersFunction}",    {"label": "Teachers"}],
+                  ["AWS/Lambda", "Duration", "FunctionName", "${AssignmentsFunction}", {"label": "Assignments"}]
+                ],
+                "annotations": {
+                  "horizontal": [{"label": "Timeout threshold", "value": 8000, "color": "#ff0000"}]
+                }
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 10, "width": 12, "height": 6,
+              "properties": {
+                "title": "API Gateway — Requests & 5xx Errors",
+                "view": "timeSeries",
+                "stacked": false,
+                "period": 60,
+                "metrics": [
+                  ["AWS/ApiGateway", "Count",    "ApiName", "sam-app-test", "Stage", "Prod", {"label": "Total Requests", "stat": "Sum"}],
+                  ["AWS/ApiGateway", "5XXError",  "ApiName", "sam-app-test", "Stage", "Prod", {"label": "5xx Errors",      "stat": "Sum", "color": "#d62728"}],
+                  ["AWS/ApiGateway", "4XXError",  "ApiName", "sam-app-test", "Stage", "Prod", {"label": "4xx Errors",      "stat": "Sum", "color": "#ff7f0e"}]
+                ]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 16, "width": 12, "height": 6,
+              "properties": {
+                "title": "DynamoDB — Read/Write Capacity",
+                "view": "timeSeries",
+                "stacked": false,
+                "period": 60,
+                "metrics": [
+                  ["AWS/DynamoDB", "ConsumedReadCapacityUnits",  "TableName", "school-management", {"label": "Read CU",  "stat": "Sum"}],
+                  ["AWS/DynamoDB", "ConsumedWriteCapacityUnits", "TableName", "school-management", {"label": "Write CU", "stat": "Sum"}]
+                ]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12, "y": 16, "width": 12, "height": 6,
+              "properties": {
+                "title": "DynamoDB — Throttles & Latency",
+                "view": "timeSeries",
+                "stacked": false,
+                "period": 60,
+                "metrics": [
+                  ["AWS/DynamoDB", "ThrottledRequests",        "TableName", "school-management", {"label": "Throttles",         "stat": "Sum",  "color": "#d62728"}],
+                  ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", "school-management", "Operation", "GetItem",        {"label": "GetItem p99 (ms)",   "stat": "p99"}],
+                  ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", "school-management", "Operation", "PutItem",        {"label": "PutItem p99 (ms)",   "stat": "p99"}],
+                  ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", "school-management", "Operation", "Query",          {"label": "Query p99 (ms)",     "stat": "p99"}]
+                ]
+              }
+            }
+          ]
+        }
+
 Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
@@ -364,3 +791,9 @@ Outputs:
   SchoolTableName:
     Description: DynamoDB table name
     Value: !Ref SchoolTable
+  AlertTopicArn:
+    Description: SNS Alert Topic ARN
+    Value: !Ref AlertTopic
+  DashboardUrl:
+    Description: CloudWatch Dashboard URL
+    Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=sam-app-test-dashboard"
