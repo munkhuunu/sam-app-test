@@ -14,12 +14,6 @@ Globals:
     MemorySize: 128
     Tracing: Active
     AutoPublishAlias: live
-    DeploymentPreference:
-      Type: Canary10Percent5Minutes
-      Alarms:
-        - !Ref AuthFunctionErrorAlarm
-        - !Ref ApiGateway5xxAlarm
-        - !Ref DynamoDBThrottleAlarm
     Environment:
       Variables:
         TABLE_NAME: !Ref SchoolTable
@@ -79,6 +73,13 @@ Resources:
     Properties:
       CodeUri: hello-world/
       Handler: auth/index.lambdaHandler
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref AuthFunctionErrorAlarm
+          - !Ref AuthFunctionDurationAlarm
+          - !Ref ApiGateway5xxAlarm
+          - !Ref DynamoDBThrottleAlarm
       Policies:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
@@ -100,6 +101,12 @@ Resources:
     Properties:
       CodeUri: hello-world/
       Handler: schools/index.lambdaHandler
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref SchoolsFunctionErrorAlarm
+          - !Ref ApiGateway5xxAlarm
+          - !Ref DynamoDBThrottleAlarm
       Policies:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
@@ -131,6 +138,12 @@ Resources:
     Properties:
       CodeUri: hello-world/
       Handler: invitations/index.lambdaHandler
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref InvitationsFunctionErrorAlarm
+          - !Ref ApiGateway5xxAlarm
+          - !Ref DynamoDBThrottleAlarm
       Policies:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
@@ -162,6 +175,12 @@ Resources:
     Properties:
       CodeUri: hello-world/
       Handler: students/index.lambdaHandler
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref StudentsFunctionErrorAlarm
+          - !Ref ApiGateway5xxAlarm
+          - !Ref DynamoDBThrottleAlarm
       Policies:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
@@ -193,6 +212,12 @@ Resources:
     Properties:
       CodeUri: hello-world/
       Handler: teachers/index.lambdaHandler
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref TeachersFunctionErrorAlarm
+          - !Ref ApiGateway5xxAlarm
+          - !Ref DynamoDBThrottleAlarm
       Policies:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
@@ -219,6 +244,12 @@ Resources:
     Properties:
       CodeUri: hello-world/
       Handler: subjects/index.lambdaHandler
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref SubjectsFunctionErrorAlarm
+          - !Ref ApiGateway5xxAlarm
+          - !Ref DynamoDBThrottleAlarm
       Policies:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
@@ -240,6 +271,12 @@ Resources:
     Properties:
       CodeUri: hello-world/
       Handler: assignments/index.lambdaHandler
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref AssignmentsFunctionErrorAlarm
+          - !Ref ApiGateway5xxAlarm
+          - !Ref DynamoDBThrottleAlarm
       Policies:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
@@ -276,6 +313,12 @@ Resources:
     Properties:
       CodeUri: hello-world/
       Handler: announcements/index.lambdaHandler
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref AnnouncementsFunctionErrorAlarm
+          - !Ref ApiGateway5xxAlarm
+          - !Ref DynamoDBThrottleAlarm
       Policies:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
@@ -297,6 +340,12 @@ Resources:
     Properties:
       CodeUri: hello-world/
       Handler: parents/index.lambdaHandler
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref ParentsFunctionErrorAlarm
+          - !Ref ApiGateway5xxAlarm
+          - !Ref DynamoDBThrottleAlarm
       Policies:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
@@ -328,6 +377,12 @@ Resources:
     Properties:
       CodeUri: hello-world/
       Handler: attendance/index.lambdaHandler
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref AttendanceFunctionErrorAlarm
+          - !Ref ApiGateway5xxAlarm
+          - !Ref DynamoDBThrottleAlarm
       Policies:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
@@ -354,6 +409,12 @@ Resources:
     Properties:
       CodeUri: hello-world/
       Handler: dashboard/index.lambdaHandler
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref DashboardFunctionErrorAlarm
+          - !Ref ApiGateway5xxAlarm
+          - !Ref DynamoDBThrottleAlarm
       Policies:
         - SSMParameterReadPolicy:
             ParameterName: sam-app-test/jwt-secret
@@ -573,7 +634,7 @@ Resources:
       AlarmActions: [!Ref AlertTopic]
 
   # ════════════════════════════════════════════
-  # Monitoring — Duration Alarm (Auth: хамгийн чухал)
+  # Monitoring — Duration / Latency
   # ════════════════════════════════════════════
   AuthFunctionDurationAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -589,6 +650,26 @@ Resources:
       Period: 300
       EvaluationPeriods: 2
       Threshold: 8000
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  ApiGatewayLatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-API-p99-Latency
+      AlarmDescription: API Gateway p99 latency > 3s for 5 minutes
+      Namespace: AWS/ApiGateway
+      MetricName: Latency
+      Dimensions:
+        - Name: ApiName
+          Value: sam-app-test
+        - Name: Stage
+          Value: Prod
+      ExtendedStatistic: p99
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 3000
       ComparisonOperator: GreaterThanThreshold
       TreatMissingData: notBreaching
       AlarmActions: [!Ref AlertTopic]
@@ -638,6 +719,22 @@ Resources:
       AlarmActions: [!Ref AlertTopic]
 
   # ════════════════════════════════════════════
+  # Composite — Overall System Health
+  # ════════════════════════════════════════════
+  SystemHealthCompositeAlarm:
+    Type: AWS::CloudWatch::CompositeAlarm
+    Properties:
+      AlarmName: sam-app-test-System-Health
+      AlarmDescription: Composite — fires if API 5xx OR DDB throttle OR Auth errors
+      AlarmRule: !Sub
+        - "ALARM(${A1}) OR ALARM(${A2}) OR ALARM(${A3})"
+        - A1: !Ref ApiGateway5xxAlarm
+          A2: !Ref DynamoDBThrottleAlarm
+          A3: !Ref AuthFunctionErrorAlarm
+      AlarmActions: [!Ref AlertTopic]
+      OKActions: [!Ref AlertTopic]
+
+  # ════════════════════════════════════════════
   # Monitoring — CloudWatch Dashboard
   # ════════════════════════════════════════════
   MonitoringDashboard:
@@ -651,15 +748,16 @@ Resources:
               "type": "text",
               "x": 0, "y": 0, "width": 24, "height": 1,
               "properties": {
-                "markdown": "# 🏫 School Management System — Monitoring Dashboard"
+                "markdown": "# 🏫 School Management System — Monitoring Dashboard\n**Region:** ${AWS::Region}  ·  **Stack:** sam-app-test  ·  **Composite health:** sam-app-test-System-Health"
               }
             },
             {
               "type": "alarm",
               "x": 0, "y": 1, "width": 24, "height": 3,
               "properties": {
-                "title": "🚨 Alarm Status",
+                "title": "🚨 Alarm Status (бүх alarm)",
                 "alarms": [
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-System-Health",
                   "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Auth-Errors",
                   "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Schools-Errors",
                   "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Students-Errors",
@@ -669,9 +767,11 @@ Resources:
                   "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Announcements-Errors",
                   "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Parents-Errors",
                   "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Attendance-Errors",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Subjects-Errors",
                   "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Dashboard-Errors",
                   "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-Auth-HighDuration",
                   "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-API-5xx-Errors",
+                  "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-API-p99-Latency",
                   "arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:sam-app-test-DynamoDB-Throttles"
                 ]
               }
@@ -686,7 +786,6 @@ Resources:
                 "region": "${AWS::Region}",
                 "period": 60,
                 "stat": "Sum",
-                "annotations": {"horizontal": []},
                 "metrics": [
                   ["AWS/Lambda", "Errors", "FunctionName", "${AuthFunction}",         {"label": "Auth"}],
                   ["AWS/Lambda", "Errors", "FunctionName", "${SchoolsFunction}",      {"label": "Schools"}],
@@ -707,11 +806,10 @@ Resources:
               "properties": {
                 "title": "Lambda Invocations (бүх function)",
                 "view": "timeSeries",
-                "stacked": false,
+                "stacked": true,
                 "region": "${AWS::Region}",
                 "period": 60,
                 "stat": "Sum",
-                "annotations": {"horizontal": []},
                 "metrics": [
                   ["AWS/Lambda", "Invocations", "FunctionName", "${AuthFunction}",         {"label": "Auth"}],
                   ["AWS/Lambda", "Invocations", "FunctionName", "${SchoolsFunction}",      {"label": "Schools"}],
@@ -728,29 +826,46 @@ Resources:
             },
             {
               "type": "metric",
-              "x": 0, "y": 10, "width": 12, "height": 6,
+              "x": 0, "y": 10, "width": 8, "height": 6,
               "properties": {
                 "title": "Lambda Duration p95 (ms)",
                 "view": "timeSeries",
-                "stacked": false,
                 "region": "${AWS::Region}",
                 "period": 300,
                 "stat": "p95",
                 "annotations": {
-                  "horizontal": [{"label": "Timeout threshold", "value": 8000, "color": "#ff0000"}]
+                  "horizontal": [{"label": "Timeout (10s)", "value": 10000, "color": "#d62728"},
+                                 {"label": "Warn (8s)",     "value": 8000,  "color": "#ff7f0e"}]
                 },
                 "metrics": [
                   ["AWS/Lambda", "Duration", "FunctionName", "${AuthFunction}",        {"label": "Auth"}],
                   ["AWS/Lambda", "Duration", "FunctionName", "${SchoolsFunction}",     {"label": "Schools"}],
                   ["AWS/Lambda", "Duration", "FunctionName", "${StudentsFunction}",    {"label": "Students"}],
                   ["AWS/Lambda", "Duration", "FunctionName", "${TeachersFunction}",    {"label": "Teachers"}],
-                  ["AWS/Lambda", "Duration", "FunctionName", "${AssignmentsFunction}", {"label": "Assignments"}]
+                  ["AWS/Lambda", "Duration", "FunctionName", "${AssignmentsFunction}", {"label": "Assignments"}],
+                  ["AWS/Lambda", "Duration", "FunctionName", "${DashboardFunction}",   {"label": "Dashboard"}]
                 ]
               }
             },
             {
               "type": "metric",
-              "x": 12, "y": 10, "width": 12, "height": 6,
+              "x": 8, "y": 10, "width": 8, "height": 6,
+              "properties": {
+                "title": "Lambda Concurrency & Throttles",
+                "view": "timeSeries",
+                "region": "${AWS::Region}",
+                "period": 60,
+                "metrics": [
+                  ["AWS/Lambda", "ConcurrentExecutions", "FunctionName", "${AuthFunction}",     {"label": "Auth concurrent",     "stat": "Maximum"}],
+                  ["AWS/Lambda", "ConcurrentExecutions", "FunctionName", "${SchoolsFunction}",  {"label": "Schools concurrent",  "stat": "Maximum"}],
+                  ["AWS/Lambda", "Throttles", "FunctionName", "${AuthFunction}",                {"label": "Auth throttles",     "stat": "Sum", "color": "#d62728"}],
+                  ["AWS/Lambda", "Throttles", "FunctionName", "${SchoolsFunction}",             {"label": "Schools throttles",  "stat": "Sum", "color": "#ff7f0e"}]
+                ]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 16, "y": 10, "width": 8, "height": 6,
               "properties": {
                 "title": "API Gateway — Requests & Errors",
                 "view": "timeSeries",
@@ -758,7 +873,6 @@ Resources:
                 "region": "${AWS::Region}",
                 "period": 60,
                 "stat": "Sum",
-                "annotations": {"horizontal": []},
                 "metrics": [
                   ["AWS/ApiGateway", "Count",    "ApiName", "sam-app-test", "Stage", "Prod", {"label": "Total Requests"}],
                   ["AWS/ApiGateway", "5XXError", "ApiName", "sam-app-test", "Stage", "Prod", {"label": "5xx Errors", "color": "#d62728"}],
@@ -770,16 +884,17 @@ Resources:
               "type": "metric",
               "x": 0, "y": 16, "width": 12, "height": 6,
               "properties": {
-                "title": "DynamoDB — Read/Write Capacity",
+                "title": "API Gateway — Latency (p50/p95/p99)",
                 "view": "timeSeries",
-                "stacked": false,
                 "region": "${AWS::Region}",
                 "period": 60,
-                "stat": "Sum",
-                "annotations": {"horizontal": []},
+                "annotations": {
+                  "horizontal": [{"label": "p99 SLO 3s", "value": 3000, "color": "#d62728"}]
+                },
                 "metrics": [
-                  ["AWS/DynamoDB", "ConsumedReadCapacityUnits",  "TableName", "school-management", {"label": "Read CU"}],
-                  ["AWS/DynamoDB", "ConsumedWriteCapacityUnits", "TableName", "school-management", {"label": "Write CU"}]
+                  ["AWS/ApiGateway", "Latency", "ApiName", "sam-app-test", "Stage", "Prod", {"label": "p50", "stat": "p50"}],
+                  ["...",                                                                  {"label": "p95", "stat": "p95"}],
+                  ["...",                                                                  {"label": "p99", "stat": "p99"}]
                 ]
               }
             },
@@ -792,13 +907,27 @@ Resources:
                 "stacked": false,
                 "region": "${AWS::Region}",
                 "period": 60,
-                "stat": "Sum",
-                "annotations": {"horizontal": []},
                 "metrics": [
-                  ["AWS/DynamoDB", "ThrottledRequests",        "TableName", "school-management", {"label": "Throttles", "color": "#d62728"}],
+                  ["AWS/DynamoDB", "ThrottledRequests",        "TableName", "school-management", {"label": "Throttles", "stat": "Sum", "color": "#d62728"}],
                   ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", "school-management", "Operation", "GetItem", {"label": "GetItem p99", "stat": "p99"}],
                   ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", "school-management", "Operation", "PutItem", {"label": "PutItem p99", "stat": "p99"}],
                   ["AWS/DynamoDB", "SuccessfulRequestLatency", "TableName", "school-management", "Operation", "Query",   {"label": "Query p99",   "stat": "p99"}]
+                ]
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0, "y": 22, "width": 24, "height": 5,
+              "properties": {
+                "title": "DynamoDB — Capacity Consumption",
+                "view": "timeSeries",
+                "stacked": true,
+                "region": "${AWS::Region}",
+                "period": 60,
+                "stat": "Sum",
+                "metrics": [
+                  ["AWS/DynamoDB", "ConsumedReadCapacityUnits",  "TableName", "school-management", {"label": "Read CU"}],
+                  ["AWS/DynamoDB", "ConsumedWriteCapacityUnits", "TableName", "school-management", {"label": "Write CU"}]
                 ]
               }
             }
@@ -818,3 +947,6 @@ Outputs:
   DashboardUrl:
     Description: CloudWatch Dashboard URL
     Value: !Sub "https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=sam-app-test-dashboard"
+  CompositeHealthAlarm:
+    Description: System health composite alarm name
+    Value: !Ref SystemHealthCompositeAlarm
