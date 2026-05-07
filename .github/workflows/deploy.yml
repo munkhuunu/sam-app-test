@@ -31,7 +31,6 @@ jobs:
         run: |
           npm install -g esbuild
           cd hello-world && npm ci
-
       - name: SAM Build
         run: sam build
 
