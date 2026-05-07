@@ -2,43 +2,90 @@ name: Deploy SAM App
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: sam-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  STACK_NAME: sam-app-test
 
 jobs:
-  deploy:
+  test:
+    name: Lint & Test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: hello-world/package-lock.json
 
-      - name: Setup SAM CLI
-        uses: aws-actions/setup-sam@v2
+      - name: Install dependencies
+        working-directory: hello-world
+        run: npm ci
+
+      - name: Lint
+        working-directory: hello-world
+        run: npm run lint --if-present
+
+      - name: Unit tests
+        working-directory: hello-world
+        run: npm test --if-present
+
+  deploy:
+    name: Build & Canary Deploy
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: hello-world/package-lock.json
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Install dependencies
-        run: |
-          npm install -g esbuild
-          cd hello-world && npm ci
-      - name: SAM Build
-        run: sam build
+      - name: Install Lambda dependencies
+        working-directory: hello-world
+        run: npm ci
 
-      - name: SAM Deploy
+      - name: SAM validate
+        run: sam validate --lint
+
+      - name: SAM build
+        run: sam build --parallel
+
+      - name: SAM deploy (canary)
         run: |
           sam deploy \
+            --stack-name ${{ env.STACK_NAME }} \
+            --region ${{ env.AWS_REGION }} \
             --no-confirm-changeset \
             --no-fail-on-empty-changeset \
-            --stack-name sam-app-test \
             --resolve-s3 \
-            --capabilities CAPABILITY_IAM
+            --capabilities CAPABILITY_IAM \
+            --tags app=${{ env.STACK_NAME }} env=prod commit=${{ github.sha }}
+
+      - name: Show outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name ${{ env.STACK_NAME }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'Stacks[0].Outputs' --output table
