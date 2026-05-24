@@ -1,18 +1,21 @@
 import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { docClient } from '../libs/dynamodb';
+import { docClient, TABLE } from '../libs/dynamodb';
 
-const RATE_LIMIT = 100;       // 100 хүсэлт
-const WINDOW_SECONDS = 60;    // 60 секундэд
+const RATE_LIMIT = 100;     // 100 хүсэлт
+const WINDOW_SECONDS = 60;  // 60 секундэд
 
+// SchoolTable-д хадгална — тусдаа table шаарддаггүй
+// PK: RLIMIT#userId, SK: WINDOW#timestamp → TTL-тай автомат устна
 export const checkRateLimit = async (userId: string) => {
   const now = Math.floor(Date.now() / 1000);
-  const windowStart = now - WINDOW_SECONDS;
-  const key = `ratelimit:${userId}:${Math.floor(now / WINDOW_SECONDS)}`;
+  const windowKey = Math.floor(now / WINDOW_SECONDS);
+  const pk = `RLIMIT#${userId}`;
+  const sk = `WINDOW#${windowKey}`;
 
   const result = await docClient.send(
     new GetCommand({
-      TableName: 'rate_limits',
-      Key: { pk: key },
+      TableName: TABLE,
+      Key: { PK: pk, SK: sk },
     })
   );
 
@@ -24,11 +27,15 @@ export const checkRateLimit = async (userId: string) => {
 
   await docClient.send(
     new PutCommand({
-      TableName: 'rate_limits',
+      TableName: TABLE,
       Item: {
-        pk: key,
+        PK: pk,
+        SK: sk,
+        GSI1PK: `RLIMIT#${pk}`,
+        GSI1SK: sk,
         count: count + 1,
-        ttl: now + WINDOW_SECONDS * 2,  // DynamoDB TTL автоматаар устгана
+        ttl: now + WINDOW_SECONDS * 2, // DynamoDB TTL
+        entityType: 'RATE_LIMIT',
       },
     })
   );

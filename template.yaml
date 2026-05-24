@@ -7,6 +7,7 @@ Globals:
     Cors:
       AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
       AllowHeaders: "'Content-Type,Authorization'"
+      # TODO: CloudFront URL-аар солих — AllowOrigin: "'https://xxx.cloudfront.net'"
       AllowOrigin: "'*'"
   Function:
     Timeout: 10
@@ -404,6 +405,33 @@ Resources:
       BuildProperties:
         EntryPoints: [attendance/index.ts]
 
+  GradesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello-world/
+      Handler: grades/index.lambdaHandler
+      DeploymentPreference:
+        Type: Canary10Percent5Minutes
+        Alarms:
+          - !Ref GradesFunctionErrorAlarm
+          - !Ref ApiGateway5xxAlarm
+          - !Ref DynamoDBThrottleAlarm
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: sam-app-test/jwt-secret
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SchoolTable
+      Events:
+        StudentGradesDirect:
+          Type: Api
+          Properties:
+            Path: /schools/{schoolId}/students/{studentId}/grades
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [grades/index.ts]
+
   DashboardFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -425,6 +453,11 @@ Resources:
           Type: Api
           Properties:
             Path: /dashboard
+            Method: GET
+        DashboardSuperAdmin:
+          Type: Api
+          Properties:
+            Path: /dashboard/global
             Method: GET
     Metadata:
       BuildMethod: esbuild
@@ -625,6 +658,23 @@ Resources:
       Dimensions:
         - Name: FunctionName
           Value: !Ref DashboardFunction
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertTopic]
+
+  GradesFunctionErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: sam-app-test-Grades-Errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref GradesFunction
       Statistic: Sum
       Period: 60
       EvaluationPeriods: 1

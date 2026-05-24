@@ -1,9 +1,11 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { QueryCommand, BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { QueryCommand, BatchWriteCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient, TABLE } from '../libs/dynamodb';
 import { authenticate, authorize } from '../middleware/auth';
+import { enforceSchoolTenant } from '../middleware/tenant';
 import { validateMarkAttendance } from '../validators';
 import { ok, created, errorResponse } from '../utils/response';
+import { ForbiddenError } from '../utils/errors';
 import { withAccessLog } from '../middleware/accessLog';
 
 const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
@@ -18,6 +20,15 @@ const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResu
       const classId = event.queryStringParameters?.classId;
       const date = event.queryStringParameters?.date;
       if (!classId) return errorResponse({ statusCode: 400, message: 'classId required' });
+
+      // Tenant check: class нь хэрэглэгчийн сургуулийнх мөн эсэхийг шалгана
+      if (user.role !== 'SUPER_ADMIN') {
+        const classItem = await docClient.send(new GetCommand({
+          TableName: TABLE,
+          Key: { PK: `SCHOOL#${user.schoolId}`, SK: `CLASS#${classId}` },
+        }));
+        if (!classItem.Item) throw new ForbiddenError('Class not found in your school');
+      }
 
       let keyExpr = 'GSI1PK = :pk';
       const exprValues: Record<string, any> = { ':pk': `CLASS#${classId}#ATTENDANCE` };
@@ -48,6 +59,15 @@ const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResu
     if (method === 'POST' && path === '/attendance') {
       authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
       validateMarkAttendance(body);
+
+      // Tenant check: class нь хэрэглэгчийн сургуулийнх мөн эсэхийг шалгана
+      if (user.role !== 'SUPER_ADMIN') {
+        const classItem = await docClient.send(new GetCommand({
+          TableName: TABLE,
+          Key: { PK: `SCHOOL#${user.schoolId}`, SK: `CLASS#${body.classId}` },
+        }));
+        if (!classItem.Item) throw new ForbiddenError('Class not found in your school');
+      }
 
       const items = body.records.map((r: any) => ({
         PK: `CLASS#${body.classId}`,

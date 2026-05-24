@@ -1,45 +1,42 @@
-// subjects/index.ts
+// grades/index.ts — standalone grades handler
+// assignments/index.ts дотор grade endpoint байгаа ч
+// энэ файл нь /grades шууд route-д зориулагдсан
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
-import { randomUUID } from 'crypto';
+import { QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient, TABLE } from '../libs/dynamodb';
 import { authenticate, authorize } from '../middleware/auth';
-import { validateCreateSubject } from '../validators';
-import { ok, created, errorResponse } from '../utils/response';
+import { enforceSchoolTenant } from '../middleware/tenant';
+import { ok, errorResponse } from '../utils/response';
+import { ForbiddenError } from '../utils/errors';
 import { withAccessLog } from '../middleware/accessLog';
 
 const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
   try {
     const user = await authenticate(event);
     const method = event.httpMethod;
-    const path = event.path;
-    const body = JSON.parse(event.body ?? '{}');
+    const schoolId = event.pathParameters?.schoolId ?? user.schoolId ?? '';
+    const studentId = event.pathParameters?.studentId;
 
-    if (method === 'GET' && path === '/subjects') {
-      authorize(user, ['DIRECTOR', 'MANAGER', 'TEACHER']);
-      const schoolId = event.queryStringParameters?.schoolId;
-      if (!schoolId) return errorResponse({ statusCode: 400, message: 'schoolId required' });
+    enforceSchoolTenant(user, schoolId);
+
+    // GET /schools/{schoolId}/students/{studentId}/grades
+    if (method === 'GET' && studentId) {
+      authorize(user, ['SUPER_ADMIN', 'DIRECTOR', 'MANAGER', 'TEACHER', 'STUDENT', 'PARENT']);
+      if (user.role === 'STUDENT' && user.studentId !== studentId)
+        throw new ForbiddenError('Access denied');
+
+      const subjectId = event.queryStringParameters?.subjectId;
       const result = await docClient.send(new QueryCommand({
-        TableName: TABLE, IndexName: 'GSI1',
+        TableName: TABLE,
+        IndexName: 'GSI1',
         KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
-        ExpressionAttributeValues: { ':pk': `SCHOOL#${schoolId}#SUBJECTS`, ':sk': 'SUBJECT#' },
+        ExpressionAttributeValues: {
+          ':pk': `STUDENT#${studentId}`,
+          ':sk': 'GRADE#',
+        },
       }));
-      return ok(result.Items ?? []);
-    }
-
-    if (method === 'POST' && path === '/subjects') {
-      authorize(user, ['DIRECTOR', 'MANAGER']);
-      validateCreateSubject(body);
-      const subjectId = randomUUID();
-      const item = {
-        PK: `SCHOOL#${body.schoolId}`, SK: `SUBJECT#${subjectId}`,
-        GSI1PK: `SCHOOL#${body.schoolId}#SUBJECTS`, GSI1SK: `SUBJECT#${subjectId}`,
-        entityType: 'SUBJECT', subjectId, schoolId: body.schoolId,
-        name: body.name, description: body.description ?? null,
-        createdAt: new Date().toISOString(),
-      };
-      await docClient.send(new PutCommand({ TableName: TABLE, Item: item }));
-      return created(item);
+      const items = result.Items ?? [];
+      return ok(subjectId ? items.filter(i => i.subjectId === subjectId) : items);
     }
 
     return errorResponse({ statusCode: 404, message: 'Not found' });
