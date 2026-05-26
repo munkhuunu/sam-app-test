@@ -1,13 +1,22 @@
 import { BadRequestError } from '../utils/errors';
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const VALID_ROLES = ['SUPER_ADMIN', 'DIRECTOR', 'MANAGER', 'TEACHER', 'PARENT', 'STUDENT'] as const;
+
 export const validateRegister = (body: any) => {
   if (!body.email || !body.password) throw new BadRequestError('email, password required');
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) throw new BadRequestError('Invalid email format');
+  if (!EMAIL_RE.test(body.email)) throw new BadRequestError('Invalid email format');
   if (body.password.length < 6) throw new BadRequestError('Password must be at least 6 characters');
+
+  // SUPER_ADMIN үүсгэх үед role шаардлагатай; бусдад invite-аас авна тул шалгахгүй
+  if (body.role === 'SUPER_ADMIN') return;
+  if (body.role && !VALID_ROLES.includes(body.role))
+    throw new BadRequestError(`Invalid role: ${body.role}`);
 };
 
 export const validateLogin = (body: any) => {
   if (!body.email || !body.password) throw new BadRequestError('email, password required');
+  if (!EMAIL_RE.test(body.email)) throw new BadRequestError('Invalid email format');
 };
 
 export const validateCreateSchool = (body: any) => {
@@ -24,12 +33,14 @@ export const validateCreateClass = (body: any) => {
 export const validateCreateStudent = (body: any) => {
   if (!body.classId || !body.firstName || !body.lastName)
     throw new BadRequestError('classId, firstName, lastName required');
-  if (body.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email))
+  if (body.email && !EMAIL_RE.test(body.email))
     throw new BadRequestError('Invalid email');
 };
 
 export const validateCreateTeacher = (body: any) => {
   if (!body.firstName || !body.lastName) throw new BadRequestError('firstName, lastName required');
+  if (body.email && !EMAIL_RE.test(body.email))
+    throw new BadRequestError('Invalid email');
 };
 
 export const validateAssignTeacher = (body: any) => {
@@ -47,9 +58,9 @@ export const validateCreateSubject = (body: any) => {
 
 export const validateCreateInvitation = (body: any) => {
   if (!body.role) throw new BadRequestError('role required');
-  const roles = ['DIRECTOR', 'MANAGER', 'TEACHER', 'PARENT', 'STUDENT'];
-  if (!roles.includes(body.role)) throw new BadRequestError('Invalid role');
-  if (body.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email))
+  const invitableRoles = ['DIRECTOR', 'MANAGER', 'TEACHER', 'PARENT', 'STUDENT'];
+  if (!invitableRoles.includes(body.role)) throw new BadRequestError('Invalid role');
+  if (body.email && !EMAIL_RE.test(body.email))
     throw new BadRequestError('Invalid email format');
 };
 

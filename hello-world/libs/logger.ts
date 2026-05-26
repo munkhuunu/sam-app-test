@@ -16,7 +16,13 @@ export interface LogContext {
 }
 
 const LEVEL_PRIORITY: Record<LogLevel, number> = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
-const MIN_LEVEL = (process.env.LOG_LEVEL as LogLevel) ?? 'INFO';
+
+const isValidLogLevel = (v: unknown): v is LogLevel =>
+  typeof v === 'string' && v in LEVEL_PRIORITY;
+
+const MIN_LEVEL: LogLevel = isValidLogLevel(process.env.LOG_LEVEL)
+  ? process.env.LOG_LEVEL
+  : 'INFO';
 
 function emit(level: LogLevel, message: string, ctx: LogContext, extra?: Record<string, unknown>) {
   if (LEVEL_PRIORITY[level] < LEVEL_PRIORITY[MIN_LEVEL]) return;

@@ -669,7 +669,7 @@ Resources:
       MetricName: Latency
       Dimensions:
         - Name: ApiName
-          Value: sam-app-test
+          Value: !Sub "${AWS::StackName}"
         - Name: Stage
           Value: Prod
       ExtendedStatistic: p99
@@ -692,7 +692,7 @@ Resources:
       MetricName: 5XXError
       Dimensions:
         - Name: ApiName
-          Value: sam-app-test
+          Value: !Sub "${AWS::StackName}"
         - Name: Stage
           Value: Prod
       Statistic: Sum
@@ -880,9 +880,9 @@ Resources:
                 "period": 60,
                 "stat": "Sum",
                 "metrics": [
-                  ["AWS/ApiGateway", "Count",    "ApiName", "sam-app-test", "Stage", "Prod", {"label": "Total Requests"}],
-                  ["AWS/ApiGateway", "5XXError", "ApiName", "sam-app-test", "Stage", "Prod", {"label": "5xx Errors", "color": "#d62728"}],
-                  ["AWS/ApiGateway", "4XXError", "ApiName", "sam-app-test", "Stage", "Prod", {"label": "4xx Errors", "color": "#ff7f0e"}]
+                  ["AWS/ApiGateway", "Count",    "ApiName", "${AWS::StackName}", "Stage", "Prod", {"label": "Total Requests"}],
+                  ["AWS/ApiGateway", "5XXError", "ApiName", "${AWS::StackName}", "Stage", "Prod", {"label": "5xx Errors", "color": "#d62728"}],
+                  ["AWS/ApiGateway", "4XXError", "ApiName", "${AWS::StackName}", "Stage", "Prod", {"label": "4xx Errors", "color": "#ff7f0e"}]
                 ]
               }
             },
@@ -898,7 +898,7 @@ Resources:
                   "horizontal": [{"label": "p99 SLO 3s", "value": 3000, "color": "#d62728"}]
                 },
                 "metrics": [
-                  ["AWS/ApiGateway", "Latency", "ApiName", "sam-app-test", "Stage", "Prod", {"label": "p50", "stat": "p50"}],
+                  ["AWS/ApiGateway", "Latency", "ApiName", "${AWS::StackName}", "Stage", "Prod", {"label": "p50", "stat": "p50"}],
                   ["...",                                                                  {"label": "p95", "stat": "p95"}],
                   ["...",                                                                  {"label": "p99", "stat": "p99"}]
                 ]

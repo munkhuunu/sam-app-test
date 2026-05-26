@@ -56,7 +56,6 @@ echo "[3/12] Creating school..."
 RESP=$(auth_post "$API_URL/schools" \
   -d '{"name":"Гэрэл Дунд Сургууль","address":"Улаанбаатар, Сүхбаатар дүүрэг"}')
 echo "  raw response: $RESP"
-# FIX: schools/index.ts saves as `schoolId`, not `id`
 SCHOOL_ID=$(echo "$RESP" | jq -r '.schoolId // .id // .data.schoolId // .data.id // empty')
 if [[ -z "$SCHOOL_ID" || "$SCHOOL_ID" == "null" ]]; then
   echo "ERROR: school creation failed — $RESP"
@@ -69,7 +68,6 @@ echo "[4/12] Creating classes..."
 RESP=$(auth_post "$API_URL/schools/$SCHOOL_ID/classes" \
   -d '{"name":"10А анги","grade":10,"academicYear":"2025"}')
 echo "  class1 raw: $RESP"
-# FIX: classes save as `classId`
 CLASS1_ID=$(echo "$RESP" | jq -r '.classId // .id // .data.classId // .data.id // empty')
 echo "  class1: $CLASS1_ID"
 
@@ -83,14 +81,14 @@ echo "[5/12] Creating subjects..."
 SUBJ_ID=""
 for SUBJ in 'Математик' 'Физик' 'Монгол хэл' 'Англи хэл' 'Түүх'; do
   RESP=$(auth_post "$API_URL/schools/$SCHOOL_ID/subjects" \
-    -d "{\"name\":\"$SUBJ\",\"classId\":\"$CLASS1_ID\"}" 2>/dev/null || echo '{}')
+    -d "{\"name\":\"$SUBJ\"}" 2>/dev/null || echo '{}')
   if [[ -z "$SUBJ_ID" || "$SUBJ_ID" == "null" ]]; then
     SUBJ_ID=$(echo "$RESP" | jq -r '.subjectId // .id // .data.subjectId // .data.id // empty')
   fi
 done
 echo "  subjects created, first subjectId: $SUBJ_ID"
 
-# ── 6. create teachers ────────────────────────────────────────────────────────
+# ── 6. create teachers (via invitation flow) ─────────────────────────────────
 echo "[6/12] Creating teachers..."
 TEACHERS=(
   'Б.Болд|bold@seed.test|Болд|Б'
@@ -104,11 +102,11 @@ for T in "${TEACHERS[@]}"; do
     -d "{\"email\":\"$EMAIL\",\"role\":\"TEACHER\"}" 2>/dev/null || echo '{}')
   TOKEN=$(echo "$INV" | jq -r '.token // .data.token // .invitation.token // empty')
   if [[ -n "$TOKEN" && "$TOKEN" != "null" ]]; then
+    # ✅ FIX: backend нь `inviteToken` хүлээдэг (invitationToken биш)
     REG=$(post "$API_URL/auth/register" \
-      -d "{\"email\":\"$EMAIL\",\"password\":\"Teacher1!\",\"name\":\"$FIRSTNAME\",\"role\":\"TEACHER\",\"invitationToken\":\"$TOKEN\"}" 2>/dev/null || echo '{}')
+      -d "{\"email\":\"$EMAIL\",\"password\":\"Teacher1!\",\"inviteToken\":\"$TOKEN\"}" 2>/dev/null || echo '{}')
   else
-    REG=$(post "$API_URL/auth/register" \
-      -d "{\"email\":\"$EMAIL\",\"password\":\"Teacher1!\",\"name\":\"$FIRSTNAME\",\"role\":\"TEACHER\"}" 2>/dev/null || echo '{}')
+    REG='{}'
   fi
   TID=$(echo "$REG" | jq -r '.userId // .id // .data.userId // .data.id // empty')
   TEACHER_IDS+=("${TID:-}")
@@ -117,8 +115,6 @@ done
 
 # ── 7. create students ────────────────────────────────────────────────────────
 echo "[7/12] Creating students..."
-# FIX: validator requires firstName + lastName, not name
-# Using firstName=given name, lastName=family initial
 STUDENTS=(
   'Ариун-Эрдэнэ|Ариун-Эрдэнэ|А|ариун@seed.test|2008-03-12'
   'Батмөнх|Батмөнх|Б|batmunkh@seed.test|2008-07-22'
@@ -147,20 +143,25 @@ echo "[8/12] Creating parents..."
 for i in 0 1 2; do
   SID="${STUDENT_IDS[$i]:-}"
   [[ -z "$SID" || "$SID" == "null" ]] && continue
-  RESP=$(post "$API_URL/auth/register" \
-    -d "{\"email\":\"parent${i}@seed.test\",\"password\":\"Parent1!\",\"name\":\"Эцэг эх ${i}\",\"role\":\"PARENT\"}" \
-    2>/dev/null || echo '{}')
-  PID=$(echo "$RESP" | jq -r '.userId // .id // .data.userId // .data.id // empty')
-  if [[ -n "$PID" && "$PID" != "null" ]]; then
-    auth_post "$API_URL/schools/$SCHOOL_ID/parents/$PID/students" \
-      -d "{\"studentId\":\"$SID\"}" > /dev/null 2>&1 || true
-    echo "  parent$i ($PID) linked to student $SID"
+  # ✅ FIX: PARENT register ч мөн inviteToken-аар flow явах ёстой
+  INV=$(auth_post "$API_URL/schools/$SCHOOL_ID/invitations" \
+    -d "{\"email\":\"parent${i}@seed.test\",\"role\":\"PARENT\"}" 2>/dev/null || echo '{}')
+  PTOKEN=$(echo "$INV" | jq -r '.token // empty')
+  if [[ -n "$PTOKEN" && "$PTOKEN" != "null" ]]; then
+    RESP=$(post "$API_URL/auth/register" \
+      -d "{\"email\":\"parent${i}@seed.test\",\"password\":\"Parent1!\",\"inviteToken\":\"$PTOKEN\"}" \
+      2>/dev/null || echo '{}')
+    PID=$(echo "$RESP" | jq -r '.userId // .id // empty')
+    if [[ -n "$PID" && "$PID" != "null" ]]; then
+      auth_post "$API_URL/schools/$SCHOOL_ID/parents/$PID/students" \
+        -d "{\"studentId\":\"$SID\"}" > /dev/null 2>&1 || true
+      echo "  parent$i ($PID) linked to student $SID"
+    fi
   fi
 done
 
 # ── 9. create assignments ─────────────────────────────────────────────────────
 echo "[9/12] Creating assignments..."
-# FIX: validator requires `type` field — valid values: HOMEWORK, EXAM, QUIZ, PROJECT
 ASGN_IDS=()
 declare -A ASGN_TYPES=(
   ['Алгебрийн даалгавар №1']='HOMEWORK'
@@ -196,8 +197,6 @@ fi
 
 # ── 11. create attendance ─────────────────────────────────────────────────────
 echo "[11/12] Creating attendance records..."
-# FIX: validator requires { classId, date, records: [{studentId, status}] }
-#      status must be uppercase: PRESENT, ABSENT, LATE, EXCUSED
 DATES=('2025-05-01' '2025-05-05' '2025-05-06' '2025-05-07' '2025-05-08')
 STATUSES=('PRESENT' 'PRESENT' 'ABSENT' 'PRESENT' 'LATE')
 
@@ -205,7 +204,6 @@ for i in "${!DATES[@]}"; do
   DATE="${DATES[$i]}"
   STATUS="${STATUSES[$i]}"
 
-  # Build records array from first 5 students
   RECORDS="["
   FIRST=true
   for SID in "${STUDENT_IDS[@]:0:5}"; do
@@ -224,7 +222,6 @@ done
 
 # ── 12. create announcements ──────────────────────────────────────────────────
 echo "[12/12] Creating announcements..."
-# FIX: validator requires `content` not `body`, audience must be uppercase ALL/TEACHER/STUDENT/PARENT
 ANNOUNCEMENTS=(
   'Эхний улирлын шалгалт|2025-05-15-ны өдөр эхний улирлын шалгалт болно. Бүх сурагчид бэлдэнэ үү.|ALL'
   'Спортын наадам|2025-05-20-нд сургуулийн спортын наадам болно. Оролцогчид бүртгүүлнэ үү.|ALL'

@@ -1,11 +1,12 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { QueryCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
+import { QueryCommand, PutCommand, DeleteCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { randomUUID } from 'crypto';
 import { docClient, TABLE } from '../libs/dynamodb';
 import { authenticate, authorize } from '../middleware/auth';
 import { enforceSchoolTenant } from '../middleware/tenant';
+import { validateCreateStudent } from '../validators';
 import { ok, created, noContent, errorResponse } from '../utils/response';
-import { NotFoundError, ForbiddenError } from '../utils/errors';
+import { NotFoundError, ForbiddenError, BadRequestError } from '../utils/errors';
 import { withAccessLog } from '../middleware/accessLog';
 
 const getLinkedStudents = async (parentId: string): Promise<string[]> => {
@@ -24,14 +25,23 @@ const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResu
     const path = event.path;
     const studentId = event.pathParameters?.studentId;
     const classId = event.pathParameters?.classId;
-    const schoolId = event.pathParameters?.schoolId ?? user.schoolId ?? '';
     const body = JSON.parse(event.body ?? '{}');
 
-    enforceSchoolTenant(user, schoolId);
-
-    // GET /classes/{classId}/students
+    // ─── GET /classes/{classId}/students ──────────────────────────────────
+    // classId-аар хайх үед schoolId шаардлагагүй ч tenant-н хүрээг шалгана
     if (method === 'GET' && classId) {
       authorize(user, ['SUPER_ADMIN', 'DIRECTOR', 'MANAGER', 'TEACHER']);
+
+      // Tenant check: class нь хэрэглэгчийн сургуулийнх мөн эсэх
+      if (user.role !== 'SUPER_ADMIN') {
+        if (!user.schoolId) throw new ForbiddenError('No school assigned');
+        const classItem = await docClient.send(new GetCommand({
+          TableName: TABLE,
+          Key: { PK: `SCHOOL#${user.schoolId}`, SK: `CLASS#${classId}` },
+        }));
+        if (!classItem.Item) throw new ForbiddenError('Class not found in your school');
+      }
+
       const result = await docClient.send(new QueryCommand({
         TableName: TABLE, IndexName: 'GSI1',
         KeyConditionExpression: 'GSI1PK = :pk AND begins_with(GSI1SK, :sk)',
@@ -39,6 +49,11 @@ const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResu
       }));
       return ok({ classId, students: result.Items ?? [] });
     }
+
+    // ─── Бусад route-уудад schoolId шаардлагатай ───────────────────────────
+    const schoolId = event.pathParameters?.schoolId ?? user.schoolId;
+    if (!schoolId) throw new BadRequestError('schoolId required');
+    enforceSchoolTenant(user, schoolId);
 
     // GET /schools/{schoolId}/students/{studentId}
     if (method === 'GET' && studentId) {
@@ -53,9 +68,16 @@ const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResu
         TableName: TABLE, IndexName: 'GSI2',
         KeyConditionExpression: 'GSI2PK = :pk',
         ExpressionAttributeValues: { ':pk': `STUDENT#${studentId}` },
+        Limit: 1,
       }));
       if (!result.Items?.length) throw new NotFoundError('Student not found');
-      return ok(result.Items[0]);
+
+      // Cross-tenant хамгаалалт: SUPER_ADMIN-аас бусдыг tenant scope-д барих
+      const student = result.Items[0];
+      if (user.role !== 'SUPER_ADMIN' && student.schoolId !== schoolId)
+        throw new ForbiddenError('Cross-tenant access denied');
+
+      return ok(student);
     }
 
     // GET /schools/{schoolId}/students
@@ -69,11 +91,18 @@ const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResu
       return ok(result.Items ?? []);
     }
 
-    // POST /schools/{schoolId}/students — schoolId always from JWT
+    // POST /schools/{schoolId}/students
     if (method === 'POST') {
       authorize(user, ['SUPER_ADMIN', 'DIRECTOR', 'MANAGER']);
-      if (!body.classId || !body.firstName || !body.lastName)
-        return errorResponse({ statusCode: 400, message: 'classId, firstName, lastName required' });
+      validateCreateStudent(body);
+
+      // classId нь энэ сургуульд харьяалагдаж байгаа эсэхийг шалгах
+      const classItem = await docClient.send(new GetCommand({
+        TableName: TABLE,
+        Key: { PK: `SCHOOL#${schoolId}`, SK: `CLASS#${body.classId}` },
+      }));
+      if (!classItem.Item) throw new BadRequestError('Class not found in this school');
+
       const sid = randomUUID();
       const item = {
         PK: `SCHOOL#${schoolId}`, SK: `STUDENT#${sid}`,
@@ -96,15 +125,22 @@ const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResu
         TableName: TABLE, IndexName: 'GSI2',
         KeyConditionExpression: 'GSI2PK = :pk',
         ExpressionAttributeValues: { ':pk': `STUDENT#${studentId}` },
+        Limit: 1,
       }));
       const student = find.Items?.[0];
       if (!student) throw new NotFoundError('Student not found');
+
+      // Tenant хамгаалалт устгахын өмнө
+      if (user.role !== 'SUPER_ADMIN' && student.schoolId !== schoolId)
+        throw new ForbiddenError('Cross-tenant delete denied');
+
       await docClient.send(new DeleteCommand({
         TableName: TABLE, Key: { PK: student.PK, SK: student.SK },
       }));
       return noContent();
     }
 
+    void path;
     return errorResponse({ statusCode: 404, message: 'Not found' });
   } catch (err: any) {
     return errorResponse(err);
